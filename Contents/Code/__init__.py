@@ -8,7 +8,7 @@ import re
 PLUGIN_PREFIX       = "/video/youtube"
 
 yt_service          = None
-yt_videoURL         = "http://www.youtube.com/get_video?video_id="
+yt_videoURL         = "http://www.youtube.com/get_video?asv=3&video_id="
 
 ####################################################################################################
 
@@ -16,7 +16,7 @@ def Start():
   Plugin.AddRequestHandler(PLUGIN_PREFIX, HandleRequest, "YouTube", "icon-default.png", "art-default.png")
   Plugin.AddViewGroup("InfoList", viewMode="InfoList", contentType="items")  
   Plugin.AddViewGroup("List", viewMode="List", contentType="items") 
-  
+
   global yt_service
   yt_service = gdata.youtube.service.YouTubeService()
   yt_service.developer_key = "AI39si7PodNU93CVDU6kxh3-m2R9hkwqoVrfijDMr0L85J94ZrJFlimNxzFA9cSky9jCSHz9epJdps8yqHu1wb743d_SfSCRWA"
@@ -100,7 +100,7 @@ def HandleRequest(pathNouns, count):
     if hd == "true":
       fmt = "22"
 
-    u = yt_videoURL + v + "&t=" + t + "&asv=2&fmt=" + fmt
+    u = yt_videoURL + v + "&t=" + t + "&fmt=" + fmt
     return Plugin.Redirect(u)
 
   return dir.ToXML()
