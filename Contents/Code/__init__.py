@@ -6,6 +6,7 @@ import gdata.youtube, gdata.youtube.service
 import re
 
 PLUGIN_PREFIX       = "/video/youtube"
+YT_FMT              = [34, 18, 35, 22, 37]
 
 yt_service          = None
 yt_videoURL         = "http://www.youtube.com/get_video?asv=3&video_id="
@@ -80,10 +81,11 @@ def HandleRequest(pathNouns, count):
       dir.AppendItem(DirectoryItem("%s/search" % PLUGIN_PREFIX, "(No Results)", ""))
    
   elif pathNouns[-1].startswith("play"):
-    ytPage = HTTP.Get(_D(pathNouns[-1].split("^")[1]))
-
-    Log.Add(_D(pathNouns[-1].split("^")[1]))
-    #Log.Add(ytPage)
+    address = _D(pathNouns[-1].split("^")[1])
+    ytPage = HTTP.Get(address)
+    
+    #Log.Add(address)
+   # Log.Add(ytPage)
 
     try:
       t = re.findall('&t=(.[^&"]{10,})', ytPage, re.IGNORECASE)[0]
@@ -92,15 +94,26 @@ def HandleRequest(pathNouns, count):
         t = re.findall('"t": "([^"]+)"', ytPage)[0]
       except:
         t = ''
-    Log.Add(t)
+    #Log.Add(t)
 
-    v = re.findall("'VIDEO_ID': '([^']+)'", ytPage)[0] #
-    hd = re.findall("'IS_HD_AVAILABLE': ([^,]+),", ytPage)[0] #
-    fmt = "18"
-    if hd == "true":
-      fmt = "22"
+    v = address[address.find('v=')+2:address.find('&feature')] #
+    Log.Add(v)
+    
+    fmt_list = re.findall('&fmt_list=([^&]+)', ytPage)[0]
+    fmts = re.findall('([0-9]+)[^,]*', fmt_list)
 
-    u = yt_videoURL + v + "&t=" + t + "&fmt=" + fmt
+    index = 4
+    if YT_FMT[index] in fmts:
+      fmt = YT_FMT[index]
+    else:
+      for i in reversed( range(0, index+1) ):
+        if str(YT_FMT[i]) in fmts:
+          fmt = YT_FMT[i]
+          break
+        else:
+          fmt = 5
+
+    u = yt_videoURL + v + "&t=" + t + "&fmt=" + str(fmt)
     return Plugin.Redirect(u)
 
   return dir.ToXML()
