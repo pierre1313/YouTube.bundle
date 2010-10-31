@@ -36,29 +36,28 @@ def parseFeed(feed,dir):
 
 def HandleRequest(pathNouns, count):
   global yt_service
-  #Log.Add(pathNouns[-1])
   try:
     title2 = pathNouns[count-1].split("||")[1]
     pathNouns[count-1] = pathNouns[count-1].split("||")[0]
   except:
     title2 = ""
-  
-  if count == 0: vg="List"
-  else: vg="InfoList"
+    
+  if count > 1: vg="InfoList"
+  else: vg="List"
     
   dir = MediaContainer("art-default.png", viewGroup=vg, title1="YouTube", title2=title2)  
   if count == 0:
-    dir.AppendItem(DirectoryItem("today||" + _L("Today"), _L("Today")))
-    dir.AppendItem(DirectoryItem("this_week||" + _L("This Week"), _L("This Week")))
-    dir.AppendItem(DirectoryItem("this_month||" + _L("This Month"), _L("This Month")))
-    dir.AppendItem(DirectoryItem("all_time||" + _L("All Time"), _L("All Time")))
-    dir.AppendItem(DirectoryItem("feed^YOUTUBE_STANDARD_MOST_RECENT_URI||" + _L("Most Recent"), _L("Most Recent"), ""))
+    dir.AppendItem(DirectoryItem("today||" + _L("Today"), _L("Today"), thumb=_R("icon-default.png")))
+    dir.AppendItem(DirectoryItem("this_week||" + _L("This Week"), _L("This Week"), thumb=_R("icon-default.png")))
+    dir.AppendItem(DirectoryItem("this_month||" + _L("This Month"), _L("This Month"), thumb=_R("icon-default.png")))
+    dir.AppendItem(DirectoryItem("all_time||" + _L("All Time"), _L("All Time"), thumb=_R("icon-default.png")))
+    dir.AppendItem(DirectoryItem("feed^YOUTUBE_STANDARD_MOST_RECENT_URI||" + _L("Most Recent"), _L("Most Recent"), thumb=_R("icon-default.png")))
     dir.AppendItem(SearchDirectoryItem("search||" + _L("Search YouTube"), _L("Search YouTube"), _L("Search YouTube"), _R("search.png")))
     
   elif count == 1 and pathNouns[0] in ['today', 'this_week', 'this_month', 'all_time']:
-    dir.AppendItem(DirectoryItem(("feed^YOUTUBE_STANDARD_MOST_VIEWED_URI^%s||" % pathNouns[0]) + _L("Most Viewed"), _L("Most Viewed"), ""))
-    dir.AppendItem(DirectoryItem(("feed^YOUTUBE_STANDARD_TOP_RATED_URI^%s||" % pathNouns[0]) + _L("Top Rated"), _L("Top Rated"), ""))
-    dir.AppendItem(DirectoryItem(("feed^YOUTUBE_STANDARD_MOST_DISCUSSED_URI^%s||" % pathNouns[0]) + _L("Most Discussed"), _L("Most Discussed"), ""))
+    dir.AppendItem(DirectoryItem(("feed^YOUTUBE_STANDARD_MOST_VIEWED_URI^%s||" % pathNouns[0]) + _L("Most Viewed"), _L("Most Viewed"), thumb=_R("icon-default.png")))
+    dir.AppendItem(DirectoryItem(("feed^YOUTUBE_STANDARD_TOP_RATED_URI^%s||" % pathNouns[0]) + _L("Top Rated"), _L("Top Rated"), thumb=_R("icon-default.png")))
+    dir.AppendItem(DirectoryItem(("feed^YOUTUBE_STANDARD_MOST_DISCUSSED_URI^%s||" % pathNouns[0]) + _L("Most Discussed"), _L("Most Discussed"), thumb=_R("icon-default.png")))
     
   elif pathNouns[0].startswith("feed") and count < 2:
     dir = parseFeed(yt_service.GetYouTubeVideoFeed(pathNouns[0].split("^")[1]), dir)
@@ -84,9 +83,6 @@ def HandleRequest(pathNouns, count):
     address = _D(pathNouns[-1].split("^")[1])
     ytPage = HTTP.Get(address)
     
-    #Log.Add(address)
-   # Log.Add(ytPage)
-
     try:
       t = re.findall('&t=(.[^&"]{10,})', ytPage, re.IGNORECASE)[0]
     except:
