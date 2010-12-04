@@ -62,19 +62,20 @@ def ParseFeed(sender=None, url=''):
     url = url + '?alt=json'
 
   rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
-  for video in rawfeed['feed']['entry']:
-    video_page = video['media$group']['media$player'][0]['url']
-    video_id = re.search('v=([^&]+)', video_page).group(1)
-    title = video['title']['$t']
-    published = Datetime.ParseDate(video['published']['$t']).strftime('%a %b %d, %Y')
-    summary = video['content']['$t']
-    duration = int(video['media$group']['yt$duration']['seconds']) * 1000
-    try:
-      rating = float(video['gd$rating']['average']) * 2
-    except:
-      rating = None
-    thumb = video['media$group']['media$thumbnail'][0]['url']
-    dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
+  if rawfeed['feed'].has_key('entry'):
+    for video in rawfeed['feed']['entry']:
+      video_page = video['media$group']['media$player'][0]['url']
+      video_id = re.search('v=([^&]+)', video_page).group(1)
+      title = video['title']['$t']
+      published = Datetime.ParseDate(video['published']['$t']).strftime('%a %b %d, %Y')
+      summary = video['content']['$t']
+      duration = int(video['media$group']['yt$duration']['seconds']) * 1000
+      try:
+        rating = float(video['gd$rating']['average']) * 2
+      except:
+        rating = None
+      thumb = video['media$group']['media$thumbnail'][0]['url']
+      dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
 
   if len(dir) == 0:
     return MessageContainer('Error', 'This query did not return any result')
@@ -106,7 +107,9 @@ def SubMenu(sender, category):
 ####################################################################################################
 
 def Search(sender, query=''):
-  return ParseFeed(url=YOUTUBE_QUERY % (String.Quote(query, usePlus=False)))
+  dir = MediaContainer()
+  dir = ParseFeed(url=YOUTUBE_QUERY % (String.Quote(query, usePlus=False)))
+  return dir
 
 ####################################################################################################
 
