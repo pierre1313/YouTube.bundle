@@ -91,6 +91,7 @@ def MainMenu():
   dir.Append(Function(DirectoryItem(SubMenu, L('All Time'), L('All Time')), category = 'all_time'))
   dir.Append(Function(DirectoryItem(ParseFeed, L('Most Recent')), url=YOUTUBE_STANDARD_MOST_RECENT_URI))
   dir.Append(Function(InputDirectoryItem(Search, L('Search YouTube'), L('Search YouTube'), L('Search YouTube'), thumb=R('icon-search.png'))))
+  dir.Append(PrefsItem('Preferences', thumb=R('icon-prefs.png')))
   return dir
 
 ####################################################################################################
