@@ -38,6 +38,6 @@
 	<key>PlexFrameworkVersion</key>
 	<string>2</string>
 	<key>PlexPluginConsoleLogging</key>
-	<string>0</string>
+	<string>1</string>
 </dict>
 </plist>

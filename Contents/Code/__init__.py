@@ -16,7 +16,6 @@ YOUTUBE_QUERY = 'http://gdata.youtube.com/feeds/api/videos?q=%s'
 DEVELOPER_KEY = 'AI39si7PodNU93CVDU6kxh3-m2R9hkwqoVrfijDMr0L85J94ZrJFlimNxzFA9cSky9jCSHz9epJdps8yqHu1wb743d_SfSCRWA'
 
 YOUTUBE_VIDEO_PAGE = 'http://www.youtube.com/watch?v=%s'
-YOUTUBE_GET_VIDEO_URL = 'http://www.youtube.com/get_video?video_id=%s&t=%s&fmt=%d&asv=3'
 YOUTUBE_VIDEO_FORMATS = ['Standard', 'Medium', 'High', '720p', '1080p']
 YOUTUBE_FMT = [34, 18, 35, 22, 37]
 USER_AGENT = 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en-US; rv:1.9.2.12) Gecko/20101026 Firefox/3.6.12'
@@ -34,7 +33,7 @@ def Start():
   MediaContainer.title1 = 'YouTube'
   MediaContainer.viewGroup = 'List'
   MediaContainer.art = R(ART)
-  MediaContainer.userAgent = USER_AGENT
+  MediaContainer.userAgent = ''
 
   DirectoryItem.thumb = R(ICON)
   VideoItem.thumb = R(ICON)
@@ -54,7 +53,9 @@ def Thumb(url):
 ####################################################################################################
 
 def ParseFeed(sender=None, url=''):
-  dir = MediaContainer(viewGroup='InfoList')
+  cookies = HTTP.GetCookiesForURL('http://www.youtube.com')
+
+  dir = MediaContainer(viewGroup='InfoList', httpCookies=cookies)
 
   if url.find('?') > 0:
     url = url + '&alt=json'
@@ -114,30 +115,29 @@ def Search(sender, query=''):
 ####################################################################################################
 
 def PlayVideo(sender, video_id):
-    yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1).content
+  yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1).content
 
-    try:
-      t = re.findall('&t=([^&"]+)', yt_page, re.IGNORECASE)[0]
-    except:
-      try:
-        t = re.findall('"t": "([^"]+)"', yt_page)[0]
-      except:
-        t = ''
+  fmt_url_map = re.findall('"fmt_url_map".+?"([^"]+)', yt_page)[0]
+  fmt_url_map = fmt_url_map.replace('\/', '/').split(',')
 
-    fmt_list = re.findall('&fmt_list=([^&]+)', yt_page)[0]
-    fmt_list = String.Unquote(fmt_list, usePlus=False)
-    fmts = re.findall('([0-9]+)[^,]*', fmt_list)
+  fmts = []
+  fmts_info = {}
 
-    index = YOUTUBE_VIDEO_FORMATS.index(Prefs['youtube_fmt'])
-    if YOUTUBE_FMT[index] in fmts:
-      fmt = YOUTUBE_FMT[index]
-    else:
-      for i in reversed( range(0, index+1) ):
-        if str(YOUTUBE_FMT[i]) in fmts:
-          fmt = YOUTUBE_FMT[i]
-          break
-        else:
-          fmt = 5
+  for f in fmt_url_map:
+    (fmt, url) = f.split('|')
+    fmts.append(fmt)
+    fmts_info[str(fmt)] = url
 
-    url = YOUTUBE_GET_VIDEO_URL % (video_id, t, fmt)
-    return Redirect(url)
+  index = YOUTUBE_VIDEO_FORMATS.index(Prefs['youtube_fmt'])
+  if YOUTUBE_FMT[index] in fmts:
+    fmt = YOUTUBE_FMT[index]
+  else:
+    for i in reversed( range(0, index+1) ):
+      if str(YOUTUBE_FMT[i]) in fmts:
+        fmt = YOUTUBE_FMT[i]
+        break
+      else:
+        fmt = 5
+
+  url = fmts_info[str(fmt)]
+  return Redirect(url)
