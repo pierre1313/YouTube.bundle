@@ -95,7 +95,7 @@ def MainMenu():
     localizedVideosName = L('Videos') +' for '+ regionName
     
   dir.Append(Function(DirectoryItem(VideosMenu, localizedVideosName, localizedVideosName)))
-  dir.Append(Function(DirectoryItem(ChannelsMenu, L('* Channels'), L('Channels'))))
+  dir.Append(Function(DirectoryItem(ChannelsMenu, L('Channels'), L('Channels'))))
   dir.Append(Function(DirectoryItem(MoviesMenu, L('Movies'), L('Movies'))))
   dir.Append(Function(DirectoryItem(ShowsMenu, L('Shows'), L('Shows'))))    
   dir.Append(Function(DirectoryItem(VideosMenu, L('* Music'), L('Music'))))
@@ -494,9 +494,12 @@ def ParseChannelFeed(sender=None, url=''):
   Log(rawfeed)
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
-      feedpage = video['author'][0]['href']
+      feedpage = video['author'][0]['uri']['$t']+'?v=2&alt=json'
       Log(feedpage)
-      link = JSON.ObjectFromURL(feedpage, encoding='utf-8',headers = AuthHeader)['gd$feedLink']
+      videos = JSON.ObjectFromURL(feedpage, encoding='utf-8',headers = AuthHeader)['entry']['gd$feedLink']
+      for vid in videos:
+        if 'upload' in vid['rel']:
+          link = vid['href']
       title = video['title']['$t']
       summary = video['summary']['$t']
       thumb = video['media$group']['media$thumbnail'][0]['url']
