@@ -48,7 +48,7 @@ YT_NAMESPACE = 'http://gdata.youtube.com/schemas/2007'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 
-AuthHeader = None
+AuthHeader = {}
 
 ####################################################################################################
 
@@ -140,14 +140,14 @@ def MoviesMenu(sender):
   return dir
 
 def MoviesCategoryMenu(sender,url,page=1):
-  dir = MediaContainer(viewGroup='InfoList',title2 = sender.title2)
+  dir = MediaContainer(viewGroup='InfoList',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
  
   if page > 1:
     dir.Append(Function(DirectoryItem(MoviesCategoryMenu, "Previous Page ..."), url=url, page = page - 1))
   
   pageContent = HTTP.Request(url+'?p='+str(page)).content
   for movie in HTML.ElementFromString(pageContent).xpath("//div[contains(@class,'movie-cell')]"):
-    Log(HTML.StringFromElement(movie))
+#    Log(HTML.StringFromElement(movie))
     title = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].text
     id = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].get('href').split('v=')[1]
     thumb = movie.xpath('.//span[@class="clip"]/img')[0].get('src')
@@ -196,7 +196,7 @@ def ShowsCategoryMenu(sender,url,page=1):
   return dir
   
 def ShowsVideos(sender,url,thumb):
-  dir = MediaContainer(viewGroup='InfoList',title2 = sender.title2)
+  dir = MediaContainer(viewGroup='InfoList',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
   for episode in HTML.ElementFromURL(url).xpath("//tbody/tr"):
     title = episode.xpath('./td[3]//h3')[0].text
@@ -229,7 +229,7 @@ def GetSummary(videoid):
     return ''
     
 def TrailersVideos(sender,url,page=1):
-  dir = MediaContainer(viewGroup='List',title2 = sender.title2)
+  dir = MediaContainer(viewGroup='List',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
  
   if page > 1:
     dir.Append(Function(DirectoryItem(TrailersVideos, "Previous Page ..."), url=url, page = page - 1))
@@ -366,9 +366,7 @@ def GetDurationFromString(duration):
 ####################################################################################################
 
 def ParseFeed(sender=None, url=''):
-  cookies = HTTP.GetCookiesForURL('http://www.youtube.com')
-
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=cookies)
+  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
   if url.find('?') > 0:
     url = url + '&alt=json'
@@ -424,9 +422,7 @@ def ParseFeed(sender=None, url=''):
     return dir
     
 def ParseSubscriptionFeed(sender=None, url=''):
-  cookies = HTTP.GetCookiesForURL('http://www.youtube.com')
-
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=cookies)
+  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
   if url.find('?') > 0:
     url = url + '&alt=json'
@@ -482,8 +478,7 @@ def ParseSubscriptionFeed(sender=None, url=''):
     return dir    
     
 def ParseChannelFeed(sender=None, url=''):
-  cookies = HTTP.GetCookiesForURL('http://www.youtube.com')
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=cookies)
+  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
   if url.find('?') > 0:
     url = url + '&alt=json'
   else:
@@ -513,8 +508,7 @@ def ParseChannelFeed(sender=None, url=''):
     return dir
     
 def ParseSubscriptions(sender=None, url=''):
-  cookies = HTTP.GetCookiesForURL('http://www.youtube.com')
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=cookies)
+  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
   if url.find('?') > 0:
     url = url + '&alt=json'
   else:
@@ -536,10 +530,8 @@ def ParseSubscriptions(sender=None, url=''):
 ####################################################################################################
 
 def PlayVideo(sender, video_id):
-
-  cookies = HTTP.GetCookiesForURL('http://www.youtube.com')
-
   yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1, headers = AuthHeader).content
+
   fmt_url_map = re.findall('"fmt_url_map".+?"([^"]+)', yt_page)[0]
   fmt_url_map = fmt_url_map.replace('\/', '/').split(',')
 
@@ -563,4 +555,5 @@ def PlayVideo(sender, video_id):
         fmt = 5
 
   url = fmts_info[str(fmt)]
+  Log("  VIDEO URL --> " + url)
   return Redirect(url)
