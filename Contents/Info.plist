@@ -39,5 +39,8 @@
 	<string>2</string>
 	<key>PlexPluginConsoleLogging</key>
 	<string>1</string>
+	
+	<key>PlexPluginDevMode</key>
+	<string>1</string>
 </dict>
 </plist>
