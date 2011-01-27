@@ -43,6 +43,8 @@
   "Please go back to the preference menu and re-enter your credentials": "Merci de revenir au menu de préférences et de re-entrer un identifiant valide,
   "Error": "Erreur",
   "This query did not return any result": "Cette recherche ne retourne aucun résultat",
-  "You have no subscriptions": "Vous n'avez aucun abonnement"
+  "You have no subscriptions": "Vous n'avez aucun abonnement",
+  "You have no contacts": "Vous n'avez aucun contact"
+
 
 }

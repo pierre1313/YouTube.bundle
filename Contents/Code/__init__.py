@@ -277,10 +277,13 @@ def MyContacts(sender,url):
   dir = MediaContainer()
   xmlcontent = HTTP.Request(url).content.strip()
   Page = HTML.ElementFromString(xmlcontent.replace('yt:','yt-'))
-  for contact in Page.xpath('//entry'): 
-    if contact.xpath('yt-status')[0].text == 'accepted':
-      username = contact.xpath('yt-username')[0].text
-      dir.Append(Function(DirectoryItem(ParseFeed, username), url=YOUTUBE_OTHER_USER_FEED%username))
+  if Page.xpath('//entry') == None:
+    dir = MessageContainer(L("Error"), L("You have no contacts"))
+  else:
+    for contact in Page.xpath('//entry'): 
+      if contact.xpath('yt-status')[0].text == 'accepted':
+        username = contact.xpath('yt-username')[0].text
+        dir.Append(Function(DirectoryItem(ParseFeed, username), url=YOUTUBE_OTHER_USER_FEED%username))
   return dir 
   
 ####################################################################################################
@@ -372,38 +375,43 @@ def ParseFeed(sender=None, url=''):
     url = url.replace('/REGIONID','/'+regionid)
  
   rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  Log(rawfeed)
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       if video.has_key('yt$videoid'):
         video_id = video['yt$videoid']['$t']
       else:
+        if video['media$group'].has_key('media$player'):
+          try:
+            video_page = video['media$group']['media$player'][0]['url']
+          except:
+            video_page = video['media$group']['media$player']['url']
+          video_id = re.search('v=([^&]+)', video_page).group(1)
+        else:
+		  video_id = None      
+        title = video['title']['$t']
+      
+      if (video_id != None) and not(video.has_key('app$control')):
         try:
-          video_page = video['media$group']['media$player'][0]['url']
-        except:
-          video_page = video['media$group']['media$player']['url']
-        video_id = re.search('v=([^&]+)', video_page).group(1)
-      title = video['title']['$t']
-      
-      try:
-        published = Datetime.ParseDate(video['published']['$t']).strftime('%a %b %d, %Y')
-      except: 
-       published = Datetime.ParseDate(video['updated']['$t']).strftime('%a %b %d, %Y')
+          published = Datetime.ParseDate(video['published']['$t']).strftime('%a %b %d, %Y')
+        except: 
+          published = Datetime.ParseDate(video['updated']['$t']).strftime('%a %b %d, %Y')
        
-      try: 
-        summary = video['content']['$t']
-      except:
-        summary = video['media$group']['media$description']['$t']
+        try: 
+          summary = video['content']['$t']
+        except:
+          summary = video['media$group']['media$description']['$t']
      
-      duration = int(video['media$group']['yt$duration']['seconds']) * 1000
+        duration = int(video['media$group']['yt$duration']['seconds']) * 1000
       
-      try:
-        rating = float(video['gd$rating']['average']) * 2
-      except:
-        rating = None
+        try:
+          rating = float(video['gd$rating']['average']) * 2
+        except:
+          rating = None
       
-      thumb = video['media$group']['media$thumbnail'][0]['url']
+        thumb = video['media$group']['media$thumbnail'][0]['url']
       
-      dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
+        dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
 
   if len(dir) == 0:
     return MessageContainer(L('Error'), L('This query did not return any result'))
@@ -431,33 +439,38 @@ def ParseSubscriptionFeed(sender=None, url=''):
 		  if details.has_key('yt$videoid'):
 			video_id = details['yt$videoid']['$t']
 		  else:
-			try:
-			  video_page = details['media$group']['media$player'][0]['url']
-			except:
-			  video_page = details['media$group']['media$player']['url']
-			video_id = re.search('v=([^&]+)', video_page).group(1)
-		  title = details['title']['$t']
-		  
-		  try:
-			published = Datetime.ParseDate(details['published']['$t']).strftime('%a %b %d, %Y')
-		  except: 
-		   published = Datetime.ParseDate(details['updated']['$t']).strftime('%a %b %d, %Y')
+		    if details['media$group'].has_key('media$player'):
+			  try:
+			    video_page = details['media$group']['media$player'][0]['url']
+  			  except:
+			    video_page = details['media$group']['media$player']['url']
+  			  video_id = re.search('v=([^&]+)', video_page).group(1)
+		    else:
+		      video_id = None
+		    title = details['title']['$t']
+
+		      
+		  if (video_id != None) and not(video.has_key('app$control')):
+  		    try:
+			  published = Datetime.ParseDate(details['published']['$t']).strftime('%a %b %d, %Y')
+		    except: 
+		      published = Datetime.ParseDate(details['updated']['$t']).strftime('%a %b %d, %Y')
 		   
-		  try: 
-			summary = details['content']['$t']
-		  except:
-			summary = details['media$group']['media$description']['$t']
+		    try: 
+		  	  summary = details['content']['$t']
+		    except:
+			  summary = details['media$group']['media$description']['$t']
 		 
-		  duration = int(details['media$group']['yt$duration']['seconds']) * 1000
+		    duration = int(details['media$group']['yt$duration']['seconds']) * 1000
 		  
-		  try:
-			rating = float(details['gd$rating']['average']) * 2
-		  except:
-			rating = None
+		    try:
+			  rating = float(details['gd$rating']['average']) * 2
+		    except:
+			  rating = None
 		  
-		  thumb = details['media$group']['media$thumbnail'][0]['url']
+		    thumb = details['media$group']['media$thumbnail'][0]['url']
 		  
-		  dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
+		    dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
 
   if len(dir) == 0:
     return MessageContainer(L('Error'), L('This query did not return any result'))
