@@ -30,9 +30,9 @@ YOUTUBE_CHANNELS_MOSTSUBSCRIBED_URI = YOUTUBE_CHANNELS_FEEDS % ('most_subscribed
 YOUTUBE_QUERY = 'http://gdata.youtube.com/feeds/api/%s?q=%s&v=2'
 
 YOUTUBE = 'http://www.youtube.com'
-YOUTUBE_MOVIES = YOUTUBE + '/movies'
-YOUTUBE_SHOWS = YOUTUBE + '/shows'
-YOUTUBE_TRAILERS = YOUTUBE + '/trailers'
+YOUTUBE_MOVIES = YOUTUBE + '/movies?hl=en'
+YOUTUBE_SHOWS = YOUTUBE + '/shows?hl=en'
+YOUTUBE_TRAILERS = YOUTUBE + '/trailers?hl=en'
 
 DEVELOPER_KEY = 'AI39si7PodNU93CVDU6kxh3-m2R9hkwqoVrfijDMr0L85J94ZrJFlimNxzFA9cSky9jCSHz9epJdps8yqHu1wb743d_SfSCRWA'
 
@@ -101,7 +101,8 @@ def MainMenu():
   dir.Append(Function(DirectoryItem(ShowsMenu, L('Shows'), L('Shows'))))    
 #  dir.Append(Function(DirectoryItem(VideosMenu, L('* Music'), L('Music'))))
   dir.Append(Function(DirectoryItem(TrailersMenu, L('Trailers'), L('Trailers'))))    
-  dir.Append(Function(DirectoryItem(MyAccount, L('My Account'), L('My Account'))))  
+  if Dict['loggedIn'] == True:
+    dir.Append(Function(DirectoryItem(MyAccount, L('My Account'), L('My Account'))))  
   dir.Append(PrefsItem(L('Preferences'), thumb=R('icon-prefs.png')))
   return dir
   
@@ -137,7 +138,7 @@ def ChannelsMenu(sender):
 def MoviesMenu(sender):
   dir = MediaContainer(title2 = L("Movies")) 
   for category in HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[@id='shmoovies-category-menu-container']/ul/li/a"):
-    dir.Append(Function(DirectoryItem(MoviesCategoryMenu, category.text), url=YOUTUBE + category.get('href')))
+    dir.Append(Function(DirectoryItem(MoviesCategoryMenu, category.text.strip()), url=YOUTUBE + category.get('href')))
   return dir
 
 def MoviesCategoryMenu(sender,url,page=1):
@@ -148,7 +149,7 @@ def MoviesCategoryMenu(sender,url,page=1):
   
   pageContent = HTTP.Request(url+'?p='+str(page)).content
   for movie in HTML.ElementFromString(pageContent).xpath("//div[contains(@class,'movie-cell')]"):
-    title = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].text
+    title = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].text.strip()
     id = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].get('href').split('v=')[1]
     thumb = movie.xpath('.//span[@class="clip"]/img')[0].get('src')
     info = (HTML.StringFromElement(movie.xpath('.//p[@class="info"]')[0]).replace('mpaa">',"|Rated ").replace('</span>','|').replace('\n','').replace('</p>','')).split('|')
@@ -174,7 +175,7 @@ def MoviesCategoryMenu(sender,url,page=1):
 def ShowsMenu(sender):
   dir = MediaContainer(title2 = L("Shows")) 
   for category in HTML.ElementFromURL(YOUTUBE_SHOWS).xpath("//div[@id='shmoovies-category-menu-container']/ul/li/a"):
-    dir.Append(Function(DirectoryItem(ShowsCategoryMenu, category.text), url=YOUTUBE + category.get('href')))
+    dir.Append(Function(DirectoryItem(ShowsCategoryMenu, category.text.strip()), url=YOUTUBE + category.get('href')))
   return dir
 
 def ShowsCategoryMenu(sender,url,page=1):
@@ -185,7 +186,7 @@ def ShowsCategoryMenu(sender,url,page=1):
   
   pageContent = HTTP.Request(url+'?p='+str(page)).content
   for show in HTML.ElementFromString(pageContent).xpath("//div[contains(@class,'show-cell')]"):
-    title = show.xpath('.//h3')[0].text
+    title = show.xpath('.//h3')[0].text.strip()
     link = YOUTUBE + show.xpath('.//a')[0].get('href')
     thumb = show.xpath('.//span[@class="clip"]/img')[0].get('src')
     dir.Append(Function(DirectoryItem(ShowsVideos, title, thumb = Function(Thumb, url=thumb)), url=link,thumb = thumb))
@@ -199,7 +200,7 @@ def ShowsVideos(sender,url,thumb):
   dir = MediaContainer(viewGroup='InfoList',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
   for episode in HTML.ElementFromURL(url).xpath("//tbody/tr"):
-    title = episode.xpath('./td[3]//h3')[0].text
+    title = episode.xpath('./td[3]//h3')[0].text.strip()
     id = episode.xpath('./td[3]//a')[0].get('href').split('v=')[1]
     duration = GetDurationFromString(episode.xpath('./td[3]//p[@class="info"]')[0].text.strip())
     summary = episode.xpath('./td[3]//p[@class="description"]')[0].text.strip()
@@ -218,7 +219,7 @@ def ShowsVideos(sender,url,thumb):
 def TrailersMenu(sender):
   dir = MediaContainer(title2 = L("Trailers")) 
   for category in HTML.ElementFromURL(YOUTUBE_TRAILERS).xpath("//div[@class='trailer-list']/preceding-sibling::h3/a"):
-    dir.Append(Function(DirectoryItem(TrailersVideos, category.text), url=YOUTUBE + category.get('href')))
+    dir.Append(Function(DirectoryItem(TrailersVideos, category.text.strip()), url=YOUTUBE + category.get('href')))
   return dir
   
 def GetSummary(videoid):
@@ -238,7 +239,7 @@ def TrailersVideos(sender,url,page=1):
   for trailer in HTML.ElementFromString(pageContent).xpath("//div[contains(@class,'trailer-cell')]"):
     id = trailer.xpath('.//div[@class="trailer-title"]/div[@class="trailer-short-title"]/a')[0].get('href').split('v=')[1]
    
-    title = trailer.xpath('.//div[@class="trailer-title"]/div[@class="trailer-short-title"]/a')[0].text
+    title = trailer.xpath('.//div[@class="trailer-title"]/div[@class="trailer-short-title"]/a')[0].text.strip()
     thumb = trailer.xpath('.//span[@class="clip"]/img')[0].get('src')
     
     try:
@@ -308,11 +309,12 @@ def Authenticate():
         HTTP.Headers['X-GData-Key'] = "key="+DEVELOPER_KEY
         AuthHeader = dict([('Authorization', "GoogleLogin auth="+AuthToken) , ('X-GData-Key',"key="+DEVELOPER_KEY)])
         Log(AuthHeader)
+        Dict['loggedIn']=True
         Log("Login Sucessful")
-        dir = MessageContainer(L("Login sucessful"), L("You are now logged in"))
   except:
-    dir = MessageContainer(L("Login failed"), L("Please go back to the preference menu and re-enter your credentials"))
-  return dir
+    Dict['loggedIn']=False
+    Log("Login Failed")  
+  return True
   
 ####################################################################################################
 
