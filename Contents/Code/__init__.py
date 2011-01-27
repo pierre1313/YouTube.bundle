@@ -377,7 +377,6 @@ def ParseFeed(sender=None, url=''):
     url = url.replace('/REGIONID','/'+regionid)
  
   rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
-  Log(rawfeed)
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       if video.has_key('yt$videoid'):
