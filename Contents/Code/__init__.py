@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import re, urllib, urllib2, cookielib
+import re
 
 YOUTUBE_STANDARD_FEEDS = 'http://gdata.youtube.com/feeds/api/standardfeeds'
 
@@ -49,8 +49,6 @@ YT_NAMESPACE = 'http://gdata.youtube.com/schemas/2007'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 
-AuthHeader = {}
-
 ####################################################################################################
 
 def Start():
@@ -68,7 +66,8 @@ def Start():
 
   HTTP.CacheTime = 3600
   HTTP.Headers['User-Agent'] = USER_AGENT
-
+  HTTP.Headers['X-GData-Key'] = "key="+DEVELOPER_KEY
+  
   Authenticate()
 
 
@@ -292,28 +291,26 @@ def MyContacts(sender,url):
 ####################################################################################################
  
 def Authenticate():
-  global AuthHeader
   try:
-    handler = urllib2.build_opener(urllib2.HTTPCookieProcessor())
-    urllib2.install_opener(handler)
-    u=Prefs['youtube_user']
-    p=Prefs['youtube_passwd']
-    params = urllib.urlencode({"Email": u, "Passwd": p,"service":"youtube","source":DEVELOPER_KEY})
-    f = handler.open("https://www.google.com/accounts/ClientLogin", params)
-    data = f.read()
-    f.close()
+    req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
+      Email = Prefs['youtube_user'],
+      Passwd = Prefs['youtube_passwd'],
+      service = "youtube",
+      source = DEVELOPER_KEY
+    ))
+    data = req.content
+    
     for keys in data.split('\n'):
       if 'Auth=' in keys:
         AuthToken = keys.replace("Auth=",'')
         HTTP.Headers['Authorization'] = "GoogleLogin auth="+AuthToken
-        HTTP.Headers['X-GData-Key'] = "key="+DEVELOPER_KEY
-        AuthHeader = dict([('Authorization', "GoogleLogin auth="+AuthToken) , ('X-GData-Key',"key="+DEVELOPER_KEY)])
-        Log(AuthHeader)
         Dict['loggedIn']=True
         Log("Login Sucessful")
+        
   except:
     Dict['loggedIn']=False
-    Log("Login Failed")  
+    Log.Exception("Login Failed")
+    
   return True
   
 ####################################################################################################
@@ -376,7 +373,7 @@ def ParseFeed(sender=None, url=''):
   else:
     url = url.replace('/REGIONID','/'+regionid)
  
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       if video.has_key('yt$videoid'):
@@ -433,7 +430,7 @@ def ParseSubscriptionFeed(sender=None, url=''):
   else:
     url = url.replace('/REGIONID','/'+regionid)
  
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   for video in rawfeed['feed']['entry']:
     if ('events?' in url) and ('video' in video['category'][1]['term']):
 		for details in video['link'][1]['entry']:
@@ -491,11 +488,11 @@ def ParseChannelFeed(sender=None, url=''):
   else:
     url = url.replace('/REGIONID','/'+regionid)
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       feedpage = video['author'][0]['uri']['$t']+'?v=2&alt=json'
-      videos = JSON.ObjectFromURL(feedpage, encoding='utf-8',headers = AuthHeader)['entry']['gd$feedLink']
+      videos = JSON.ObjectFromURL(feedpage, encoding='utf-8')['entry']['gd$feedLink']
       for vid in videos:
         if 'upload' in vid['rel']:
           link = vid['href']
@@ -517,13 +514,13 @@ def ParseChannelSearch(sender=None, url=''):
   else:
     url = url + '?alt=json'
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       link = video['gd$feedLink'][0]['href']
       title = video['title']['$t']
       summary = video['summary']['$t']
-      thumb = JSON.ObjectFromURL(YOUTUBE_USER_PROFILE % video['author'][0]['name']['$t'], encoding='utf-8',headers = AuthHeader)['entry']['media$thumbnail']['url']
+      thumb = JSON.ObjectFromURL(YOUTUBE_USER_PROFILE % video['author'][0]['name']['$t'], encoding='utf-8')['entry']['media$thumbnail']['url']
       dir.Append(Function(DirectoryItem(ParseFeed, title=title, summary=summary, thumb=Function(Thumb, url=thumb)), url=link))
 
   if len(dir) == 0:
@@ -539,7 +536,7 @@ def ParsePlaylist(sender=None, url=''):
   else:
     url = url + '?alt=json'
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       link = video['content']['src']
@@ -560,7 +557,7 @@ def ParseSubscriptions(sender=None, url=''):
   else:
     url = url + '?alt=json'
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for subscription in rawfeed['feed']['entry']:
       link = subscription['content']['src']
@@ -575,7 +572,7 @@ def ParseSubscriptions(sender=None, url=''):
 ####################################################################################################
 
 def PlayVideo(sender, video_id):
-  yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1, headers = AuthHeader).content
+  yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1).content
 
   fmt_url_map = re.findall('"fmt_url_map".+?"([^"]+)', yt_page)[0]
   fmt_url_map = fmt_url_map.replace('\/', '/').split(',')
