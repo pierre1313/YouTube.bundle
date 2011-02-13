@@ -571,7 +571,7 @@ def ParseSubscriptions(sender=None, url=''):
         title = subscription['title']['$t'].replace('Activity of :','') + L(" (Activity)")
         dir.Append(Function(DirectoryItem(ParseSubscriptionFeed, title=title), url=link))
       else : 
-        title = subscription['title']['$t'].replace('Videos of :','') + L(" (Videos)")
+        title = subscription['title']['$t'].replace('Videos published by :','') + L(" (Videos)")
         dir.Append(Function(DirectoryItem(ParseFeed, title=title), url=link))
 
   if len(dir) == 0:
