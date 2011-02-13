@@ -44,6 +44,16 @@
   "Error": "Error",
   "This query did not return any result": "This query did not return any result",
   "You have no subscriptions": "You have no subscriptions",
-  "You have no contacts": "You have no contacts"
+  "This user has no subscriptions": "This user has no subscriptions",
+  "You have no contacts": "You have no contacts",
+  "This feed does not contain any video": "This feed does not contain any video",
+  
+  " (Activity)": " (Activity)",
+  " (Videos)": " (Videos)",
+  
+  "'s uploads": "'s uploads",
+  "'s favorites": "'s favorites",
+  "'s subscriptions": "'s subscriptions",
+  "'s playlists": "'s playlists"
 
 }

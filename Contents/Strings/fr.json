@@ -44,7 +44,15 @@
   "Error": "Erreur",
   "This query did not return any result": "Cette recherche ne retourne aucun résultat",
   "You have no subscriptions": "Vous n'avez aucun abonnement",
+  "This user has no subscriptions": "Cet utilisateur n'a aucun abonnements",
   "You have no contacts": "Vous n'avez aucun contact"
-
-
+  "This feed does not contain any video": "Ce flux ne contient aucune vidéo",
+  
+  " (Activity)": " (Activité)",
+  " (Videos)": " (Vidéos)",
+  
+  "'s uploads": ": ses vidéos",
+  "'s favorites": ": ses favoris",
+  "'s subscriptions": ": ses abonnements",
+  "'s playlists": ": ses playlists"
 }

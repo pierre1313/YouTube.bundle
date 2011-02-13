@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import re, urllib, urllib2, cookielib
+import re
 
 YOUTUBE_STANDARD_FEEDS = 'http://gdata.youtube.com/feeds/api/standardfeeds'
 
@@ -14,13 +14,13 @@ YOUTUBE_STANDARD_MOST_LINKED_URI = '%s/REGIONID/%s' % (YOUTUBE_STANDARD_FEEDS, '
 YOUTUBE_STANDARD_MOST_RESPONDED_URI = '%s/REGIONID/%s' % (YOUTUBE_STANDARD_FEEDS, 'most_responded')
 
 YOUTUBE_USER_FEED = 'http://gdata.youtube.com/feeds/api/users/%s'
-YOUTUBE_OTHER_USER_FEED = 'http://gdata.youtube.com/feeds/api/users/%s/uploads'
+YOUTUBE_OTHER_USER_FEED = 'http://gdata.youtube.com/feeds/api/users/%s/uploads?alt=json'
 YOUTUBE_USER_PROFILE = 'http://gdata.youtube.com/feeds/api/users/%s?alt=json'
 YOUTUBE_USER_VIDEOS = YOUTUBE_USER_FEED+'/uploads'
 YOUTUBE_USER_FAVORITES = YOUTUBE_USER_FEED+'/favorites?v=2'
 YOUTUBE_USER_PLAYLISTS = YOUTUBE_USER_FEED+'/playlists?v=2'
 YOUTUBE_USER_SUBSCRIPTIONS = YOUTUBE_USER_FEED+'/subscriptions?v=2'
-YOUTUBE_USER_CONTACTS = YOUTUBE_USER_FEED+'/contacts?v=2'
+YOUTUBE_USER_CONTACTS = YOUTUBE_USER_FEED+'/contacts?v=2&alt=json'
 
 YOUTUBE_CHANNELS_FEEDS  = 'http://gdata.youtube.com/feeds/api/channelstandardfeeds/%s?v=2'
 
@@ -49,8 +49,6 @@ YT_NAMESPACE = 'http://gdata.youtube.com/schemas/2007'
 ART = 'art-default.jpg'
 ICON = 'icon-default.png'
 
-AuthHeader = {}
-
 ####################################################################################################
 
 def Start():
@@ -68,7 +66,8 @@ def Start():
 
   HTTP.CacheTime = 3600
   HTTP.Headers['User-Agent'] = USER_AGENT
-
+  HTTP.Headers['X-GData-Key'] = "key="+DEVELOPER_KEY
+  
   Authenticate()
 
 ####################################################################################################
@@ -268,51 +267,56 @@ def MyAccount(sender):
   dir = MediaContainer()
   dir.Append(Function(DirectoryItem(ParseFeed, L('My Videos')), url=YOUTUBE_USER_VIDEOS % 'default'))
   dir.Append(Function(DirectoryItem(ParseFeed, L('My Favorites')), url=YOUTUBE_USER_FAVORITES % Prefs['youtube_user']))
-  dir.Append(Function(DirectoryItem(ParsePlaylist, L('My Playlists')), url=YOUTUBE_USER_PLAYLISTS % Prefs['youtube_user']))
+  dir.Append(Function(DirectoryItem(ParsePlaylists, L('My Playlists')), url=YOUTUBE_USER_PLAYLISTS % Prefs['youtube_user']))
   dir.Append(Function(DirectoryItem(ParseSubscriptions, L('My Subscriptions')), url=YOUTUBE_USER_SUBSCRIPTIONS % 'default'))
   dir.Append(Function(DirectoryItem(MyContacts, L('My Contacts')), url=YOUTUBE_USER_CONTACTS % 'default'))
   return dir 
    
 def MyContacts(sender,url):
-  dir = MediaContainer()
-  xmlcontent = HTTP.Request(url).content.strip()
-  Page = HTML.ElementFromString(xmlcontent.replace('yt:','yt-'))
-  if Page.xpath('//entry') == None:
+  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+  Page = JSON.ObjectFromURL(url, encoding='utf-8')
+  if Page['feed']['openSearch$totalResults'] == 0:
     dir = MessageContainer(L("Error"), L("You have no contacts"))
   else:
-    for contact in Page.xpath('//entry'): 
-      if contact.xpath('yt-status')[0].text == 'accepted':
-        username = contact.xpath('yt-username')[0].text
-        dir.Append(Function(DirectoryItem(ParseFeed, username), url=YOUTUBE_OTHER_USER_FEED%username))
+    for contact in Page['feed']['entry']: 
+      if contact.has_key('yt$status') and contact['yt$status']['$t'] == 'accepted':
+        username = contact['yt$username']['$t'].strip()
+        dir.Append(Function(DirectoryItem(ContactPage, username), username=username))
   return dir 
+  
+def ContactPage(sender, username):
+  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s uploads')), url=YOUTUBE_OTHER_USER_FEED%username))
+  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s favorites')), url=YOUTUBE_USER_FAVORITES%username))
+  dir.Append(Function(DirectoryItem(ParseSubscriptions, username+L('\'s subscriptions')), url=YOUTUBE_USER_SUBSCRIPTIONS%username))
+  dir.Append(Function(DirectoryItem(ParsePlaylists, username+L('\'s playlists')), url=YOUTUBE_USER_PLAYLISTS%username))
+  return dir
 
 ####################################################################################################
 ## AUTHENTICATION
 ####################################################################################################
  
 def Authenticate():
-  global AuthHeader
   try:
-    handler = urllib2.build_opener(urllib2.HTTPCookieProcessor())
-    urllib2.install_opener(handler)
-    u=Prefs['youtube_user']
-    p=Prefs['youtube_passwd']
-    params = urllib.urlencode({"Email": u, "Passwd": p,"service":"youtube","source":DEVELOPER_KEY})
-    f = handler.open("https://www.google.com/accounts/ClientLogin", params)
-    data = f.read()
-    f.close()
+    req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
+      Email = Prefs['youtube_user'],
+      Passwd = Prefs['youtube_passwd'],
+      service = "youtube",
+      source = DEVELOPER_KEY
+    ))
+    data = req.content
+    
     for keys in data.split('\n'):
       if 'Auth=' in keys:
         AuthToken = keys.replace("Auth=",'')
         HTTP.Headers['Authorization'] = "GoogleLogin auth="+AuthToken
-        HTTP.Headers['X-GData-Key'] = "key="+DEVELOPER_KEY
-        AuthHeader = dict([('Authorization', "GoogleLogin auth="+AuthToken) , ('X-GData-Key',"key="+DEVELOPER_KEY)])
-        Log(AuthHeader)
         Dict['loggedIn']=True
         Log("Login Sucessful")
+        
   except:
     Dict['loggedIn']=False
-    Log("Login Failed")  
+    Log.Exception("Login Failed")
+    
   return True
   
 ####################################################################################################
@@ -362,57 +366,62 @@ def GetDurationFromString(duration):
 ####################################################################################################
 
 def ParseFeed(sender=None, url=''):
-    dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
-    if url.find('?') > 0:
-      url = url + '&alt=json'
-    else:
-      url = url + '?alt=json'
+  if url.find('?') > 0:
+    url = url + '&alt=json'
+  else:
+    url = url + '?alt=json'
 
-    regionid = Prefs['youtube_region'].split('/')[1]
-    if regionid == 'ALL':
-      url = url.replace('/REGIONID','')
-    else:
-      url = url.replace('/REGIONID','/'+regionid)
-
-    rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',cacheTime=CACHE_1HOUR)
+  regionid = Prefs['youtube_region'].split('/')[1]
+  if regionid == 'ALL':
+    url = url.replace('/REGIONID','')
+  else:
+    url = url.replace('/REGIONID','/'+regionid)
+ 
+  try:
+    rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
+    Log(rawfeed)
     if rawfeed['feed'].has_key('entry'):
       for video in rawfeed['feed']['entry']:
         if video.has_key('yt$videoid'):
           video_id = video['yt$videoid']['$t']
-        elif video['media$group'].has_key('media$player'):
-          try:
-            video_page = video['media$group']['media$player'][0]['url']
-          except:
-            video_page = video['media$group']['media$player']['url']
-          video_id = re.search('v=([^&]+)', video_page).group(1)
         else:
-          video_id = None      
-        title = video['title']['$t']
+          if video['media$group'].has_key('media$player'):
+            try:
+              video_page = video['media$group']['media$player'][0]['url']
+            except:
+              video_page = video['media$group']['media$player']['url']
+            video_id = re.search('v=([^&]+)', video_page).group(1)
+          else:
+            video_id = None      
+          title = video['title']['$t']
 
         if (video_id != None) and not(video.has_key('app$control')):
 	      try:
-		    published = Datetime.ParseDate(video['published']['$t']).strftime('%a %b %d, %Y')
+	        published = Datetime.ParseDate(video['published']['$t']).strftime('%a %b %d, %Y')
 	      except: 
-		    published = Datetime.ParseDate(video['updated']['$t']).strftime('%a %b %d, %Y')
+	        published = Datetime.ParseDate(video['updated']['$t']).strftime('%a %b %d, %Y')
 	      if video.has_key('content') and video['content'].has_key('$t'):
-		    summary = video['content']['$t']
+	        summary = video['content']['$t']
 	      else:
-		    summary = video['media$group']['media$description']['$t']
+	        summary = video['media$group']['media$description']['$t']
 	      summary = summary.split('!express')[0]
-	      Log(summary)
+	    
 	      duration = int(video['media$group']['yt$duration']['seconds']) * 1000
 	      try:
-		    rating = float(video['gd$rating']['average']) * 2
+	        rating = float(video['gd$rating']['average']) * 2
 	      except:
-		    rating = 0
+	        rating = None
 	      thumb = video['media$group']['media$thumbnail'][0]['url']
 	      dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
+  except:
+    return  MessageContainer(L('Error'), L('This feed does not contain any video'))
 
-    if len(dir) == 0:
-      return MessageContainer(L('Error'), L('This query did not return any result'))
-    else:
-      return dir
+  if len(dir) == 0:
+    return MessageContainer(L('Error'), L('This feed does not contain any video'))
+  else:
+    return dir
 
 def ParseSubscriptionFeed(sender=None, url=''):
   dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
@@ -428,7 +437,7 @@ def ParseSubscriptionFeed(sender=None, url=''):
   else:
     url = url.replace('/REGIONID','/'+regionid)
  
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   for video in rawfeed['feed']['entry']:
     if ('events?' in url) and ('video' in video['category'][1]['term']):
 		for details in video['link'][1]['entry']:
@@ -451,13 +460,13 @@ def ParseSubscriptionFeed(sender=None, url=''):
 		      published = Datetime.ParseDate(details['updated']['$t']).strftime('%a %b %d, %Y')
 
 		    try: 
-		  	  summary = details['content']['$t']
+			  summary = details['content']['$t']
 		    except:
 			  summary = details['media$group']['media$description']['$t']
 		    summary = summary.split('!express')[0]
 		      
 		    duration = int(details['media$group']['yt$duration']['seconds']) * 1000
-		  
+
 		    try:
 			  rating = float(details['gd$rating']['average']) * 2
 		    except:
@@ -485,11 +494,11 @@ def ParseChannelFeed(sender=None, url=''):
   else:
     url = url.replace('/REGIONID','/'+regionid)
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       feedpage = video['author'][0]['uri']['$t']+'?v=2&alt=json'
-      videos = JSON.ObjectFromURL(feedpage, encoding='utf-8',headers = AuthHeader)['entry']['gd$feedLink']
+      videos = JSON.ObjectFromURL(feedpage, encoding='utf-8')['entry']['gd$feedLink']
       for vid in videos:
         if 'upload' in vid['rel']:
           link = vid['href']
@@ -511,21 +520,21 @@ def ParseChannelSearch(sender=None, url=''):
   else:
     url = url + '?alt=json'
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       link = video['gd$feedLink'][0]['href']
       title = video['title']['$t']
       summary = video['summary']['$t']
-      thumb = JSON.ObjectFromURL(YOUTUBE_USER_PROFILE % video['author'][0]['name']['$t'], encoding='utf-8',headers = AuthHeader)['entry']['media$thumbnail']['url']
+      thumb = JSON.ObjectFromURL(YOUTUBE_USER_PROFILE % video['author'][0]['name']['$t'], encoding='utf-8')['entry']['media$thumbnail']['url']
       dir.Append(Function(DirectoryItem(ParseFeed, title=title, summary=summary, thumb=Function(Thumb, url=thumb)), url=link))
 
   if len(dir) == 0:
     return MessageContainer(L('Error'), L('This query did not return any result'))
   else:
     return dir
-    
-def ParsePlaylist(sender=None, url=''):
+
+def ParsePlaylists(sender=None, url=''):
   dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
   if url.find('?') > 0:
@@ -533,7 +542,7 @@ def ParsePlaylist(sender=None, url=''):
   else:
     url = url + '?alt=json'
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       link = video['content']['src']
@@ -554,22 +563,29 @@ def ParseSubscriptions(sender=None, url=''):
   else:
     url = url + '?alt=json'
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8',headers = AuthHeader)
+  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for subscription in rawfeed['feed']['entry']:
       link = subscription['content']['src']
-      title = subscription['title']['$t']
-      dir.Append(Function(DirectoryItem(ParseSubscriptionFeed, title=title), url=link))
+      if 'Activity of :' in subscription['title']['$t']:
+        title = subscription['title']['$t'].replace('Activity of :','') + L(" (Activity)")
+        dir.Append(Function(DirectoryItem(ParseSubscriptionFeed, title=title), url=link))
+      else : 
+        title = subscription['title']['$t'].replace('Videos of :','') + L(" (Videos)")
+        dir.Append(Function(DirectoryItem(ParseFeed, title=title), url=link))
 
   if len(dir) == 0:
-    return MessageContainer(L('Error'), L('You have no subscriptions'))
+    if 'default' in url:
+      return MessageContainer(L('Error'), L('You have no subscriptions'))
+    else:
+      return MessageContainer(L('Error'), L('This user has no subscriptions'))
   else:
     return dir
 
 ####################################################################################################
 
 def PlayVideo(sender, video_id):
-  yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1, headers = AuthHeader).content
+  yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1).content
 
   fmt_url_map = re.findall('"fmt_url_map".+?"([^"]+)', yt_page)[0]
   fmt_url_map = fmt_url_map.replace('\/', '/').split(',')
