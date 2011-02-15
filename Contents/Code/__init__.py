@@ -288,10 +288,10 @@ def MyContacts(sender,url):
   
 def ContactPage(sender, username):
   dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
-  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s uploads')), url=YOUTUBE_OTHER_USER_FEED%'yuzztme'))
-  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s favorites')), url=YOUTUBE_USER_FAVORITES%'yuzztme'))
-#  dir.Append(Function(DirectoryItem(ParseSubscriptions, username+L('\'s subscriptions')), url=YOUTUBE_USER_SUBSCRIPTIONS%'yuzztme'))
-  dir.Append(Function(DirectoryItem(ParsePlaylists, username+L('\'s playlists')), url=YOUTUBE_USER_PLAYLISTS%'yuzztme'))
+  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s uploads')), url=YOUTUBE_OTHER_USER_FEED%username))
+  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s favorites')), url=YOUTUBE_USER_FAVORITES%username))
+#  dir.Append(Function(DirectoryItem(ParseSubscriptions, username+L('\'s subscriptions')), url=YOUTUBE_USER_SUBSCRIPTIONS%username))
+  dir.Append(Function(DirectoryItem(ParsePlaylists, username+L('\'s playlists')), url=YOUTUBE_USER_PLAYLISTS%username))
   return dir
 
 ####################################################################################################
