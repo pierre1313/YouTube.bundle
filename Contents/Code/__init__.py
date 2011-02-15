@@ -34,6 +34,8 @@ YOUTUBE_MOVIES = YOUTUBE + '/movies?hl=en'
 YOUTUBE_SHOWS = YOUTUBE + '/shows?hl=en'
 YOUTUBE_TRAILERS = YOUTUBE + '/trailers?hl=en'
 
+MAXRESULTS = 50
+
 DEVELOPER_KEY = 'AI39si7PodNU93CVDU6kxh3-m2R9hkwqoVrfijDMr0L85J94ZrJFlimNxzFA9cSky9jCSHz9epJdps8yqHu1wb743d_SfSCRWA'
 
 YOUTUBE_VIDEO_DETAILS = 'http://gdata.youtube.com/feeds/api/videos/%s?v=2&alt=jsonc'
@@ -286,10 +288,10 @@ def MyContacts(sender,url):
   
 def ContactPage(sender, username):
   dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
-  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s uploads')), url=YOUTUBE_OTHER_USER_FEED%username))
-  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s favorites')), url=YOUTUBE_USER_FAVORITES%username))
-  dir.Append(Function(DirectoryItem(ParseSubscriptions, username+L('\'s subscriptions')), url=YOUTUBE_USER_SUBSCRIPTIONS%username))
-  dir.Append(Function(DirectoryItem(ParsePlaylists, username+L('\'s playlists')), url=YOUTUBE_USER_PLAYLISTS%username))
+  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s uploads')), url=YOUTUBE_OTHER_USER_FEED%'yuzztme'))
+  dir.Append(Function(DirectoryItem(ParseFeed, username+L('\'s favorites')), url=YOUTUBE_USER_FAVORITES%'yuzztme'))
+#  dir.Append(Function(DirectoryItem(ParseSubscriptions, username+L('\'s subscriptions')), url=YOUTUBE_USER_SUBSCRIPTIONS%'yuzztme'))
+  dir.Append(Function(DirectoryItem(ParsePlaylists, username+L('\'s playlists')), url=YOUTUBE_USER_PLAYLISTS%'yuzztme'))
   return dir
 
 ####################################################################################################
@@ -364,24 +366,52 @@ def GetDurationFromString(duration):
     return 0  
 
 ####################################################################################################
-
-def ParseFeed(sender=None, url=''):
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
-
-  if url.find('?') > 0:
-    url = url + '&alt=json'
+def AddJSONSuffix(url):
+  if '?' in url:
+    return url + '&alt=json'
   else:
-    url = url + '?alt=json'
+    return url + '?alt=json'
 
+def Regionalize(url):
   regionid = Prefs['youtube_region'].split('/')[1]
   if regionid == 'ALL':
-    url = url.replace('/REGIONID','')
+    return  url.replace('/REGIONID','')
   else:
-    url = url.replace('/REGIONID','/'+regionid)
- 
+    return url.replace('/REGIONID','/'+regionid) 
+
+def check_rejected_entry(entry):
+  if 'app$control' in entry : 
+    if 'yt$state' in entry['app$control']:
+      if 'name' in entry['app$control']['yt$state']:
+        if entry['app$control']['yt$state']['name'] == 'rejected':
+          Log("REJECTED A VIDEO")
+          return True
+        else:
+          return False
+      else:
+        return False
+    else:
+      return False
+  else:
+    return False
+
+
+def ParseFeed(sender=None, url='', page=1):
+  dir = MediaContainer(viewGroup='InfoList', replaceParent = (page>1), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+
+  Localurl = AddJSONSuffix(url)
+  Localurl = Regionalize(Localurl +'&start-index=' + str((page-1)*MAXRESULTS+1) + '&max-results=' + str(MAXRESULTS))
+
   try:
-    rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
-    Log(rawfeed)
+    rawfeed = JSON.ObjectFromURL(Localurl, encoding='utf-8')
+    
+    if rawfeed['feed'].has_key('openSearch$totalResults'):
+      need_previous = not (page == 1)
+      need_next = ((int(rawfeed['feed']['openSearch$startIndex']['$t']) + int(rawfeed['feed']['openSearch$itemsPerPage']['$t'])) < int(rawfeed['feed']['openSearch$totalResults']['$t']))
+      
+    if (need_previous):
+      dir.Append(Function(DirectoryItem(ParseFeed, title="Previous"), url=url,page = page-1))
+
     if rawfeed['feed'].has_key('entry'):
       for video in rawfeed['feed']['entry']:
         if video.has_key('yt$videoid'):
@@ -392,12 +422,12 @@ def ParseFeed(sender=None, url=''):
               video_page = video['media$group']['media$player'][0]['url']
             except:
               video_page = video['media$group']['media$player']['url']
-            video_id = re.search('v=([^&]+)', video_page).group(1)
+            video_id = re.search('v=([^&]+)', video_page).group(1).split('&')[0]
           else:
             video_id = None      
           title = video['title']['$t']
 
-        if (video_id != None) and not(video.has_key('app$control')):
+        if (video_id != None) and not(check_rejected_entry(video)):
 	      try:
 	        published = Datetime.ParseDate(video['published']['$t']).strftime('%a %b %d, %Y')
 	      except: 
@@ -415,6 +445,9 @@ def ParseFeed(sender=None, url=''):
 	        rating = None
 	      thumb = video['media$group']['media$thumbnail'][0]['url']
 	      dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
+
+      if (need_next):
+        dir.Append(Function(DirectoryItem(ParseFeed, title="Next"), url=url,page = page+1))
   except:
     return  MessageContainer(L('Error'), L('This feed does not contain any video'))
 
@@ -423,21 +456,21 @@ def ParseFeed(sender=None, url=''):
   else:
     return dir
 
-def ParseSubscriptionFeed(sender=None, url=''):
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+def ParseSubscriptionFeed(sender=None, url='',page=1):
+  dir = MediaContainer(viewGroup='InfoList', replaceParent = (page>1), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
-  if url.find('?') > 0:
-    url = url + '&alt=json'
-  else:
-    url = url + '?alt=json'
-
-  regionid = Prefs['youtube_region'].split('/')[1]
-  if regionid == 'ALL':
-    url = url.replace('/REGIONID','')
-  else:
-    url = url.replace('/REGIONID','/'+regionid)
+  Localurl = AddJSONSuffix(url)
+  Localurl = Regionalize(Localurl +'&start-index=' + str((page-1)*MAXRESULTS+1) + '&max-results=' + str(MAXRESULTS))
  
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
+  rawfeed = JSON.ObjectFromURL(Localurl, encoding='utf-8')
+  
+  if rawfeed['feed'].has_key('openSearch$totalResults'):
+    need_previous = not (page == 1)
+    need_next = ((int(rawfeed['feed']['openSearch$startIndex']['$t']) + int(rawfeed['feed']['openSearch$itemsPerPage']['$t'])) < int(rawfeed['feed']['openSearch$totalResults']['$t']))
+      
+  if (need_previous):
+    dir.Append(Function(DirectoryItem(ParseSubscriptionFeed, title="Previous"), url=url,page = page-1))
+
   for video in rawfeed['feed']['entry']:
     if ('events?' in url) and ('video' in video['category'][1]['term']):
 		for details in video['link'][1]['entry']:
@@ -479,22 +512,24 @@ def ParseSubscriptionFeed(sender=None, url=''):
   if len(dir) == 0:
     return MessageContainer(L('Error'), L('This query did not return any result'))
   else:
+    if (need_next):
+      dir.Append(Function(DirectoryItem(ParseSubscriptionFeed, title="Next"), url=url,page = page+1))
     return dir
 
-def ParseChannelFeed(sender=None, url=''):
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
-  if url.find('?') > 0:
-    url = url + '&alt=json'
-  else:
-    url = url + '?alt=json'
+def ParseChannelFeed(sender=None, url='',page=1):
+  dir = MediaContainer(viewGroup='InfoList', replaceParent = (page>1), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
-  regionid = Prefs['youtube_region'].split('/')[1]
-  if regionid == 'ALL':
-    url = url.replace('/REGIONID','')
-  else:
-    url = url.replace('/REGIONID','/'+regionid)
+  Localurl = AddJSONSuffix(url)
+  Localurl = Regionalize(Localurl +'&start-index=' + str((page-1)*MAXRESULTS+1) + '&max-results=' + str(MAXRESULTS))
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
+  rawfeed = JSON.ObjectFromURL(Localurl, encoding='utf-8')
+  if rawfeed['feed'].has_key('openSearch$totalResults'):
+    need_previous = not (page == 1)
+    need_next = ((int(rawfeed['feed']['openSearch$startIndex']['$t']) + int(rawfeed['feed']['openSearch$itemsPerPage']['$t'])) < int(rawfeed['feed']['openSearch$totalResults']['$t']))
+      
+  if (need_previous):
+    dir.Append(Function(DirectoryItem(ParseChannelFeed, title="Previous"), url=url,page = page-1))
+
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       feedpage = video['author'][0]['uri']['$t']+'?v=2&alt=json'
@@ -510,17 +545,23 @@ def ParseChannelFeed(sender=None, url=''):
   if len(dir) == 0:
     return MessageContainer(L('Error'), L('This query did not return any result'))
   else:
+    if (need_next):
+      dir.Append(Function(DirectoryItem(ParseChannelFeed, title="Next"), url=url,page = page+1))
     return dir
     
-def ParseChannelSearch(sender=None, url=''):
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+def ParseChannelSearch(sender=None, url='',page=1):
+  dir = MediaContainer(viewGroup='InfoList', replaceParent = (page>1), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
-  if url.find('?') > 0:
-    url = url + '&alt=json'
-  else:
-    url = url + '?alt=json'
+  Localurl = AddJSONSuffix(url)+'&start-index=' + str((page-1)*MAXRESULTS+1) + '&max-results=' + str(MAXRESULTS)
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
+  rawfeed = JSON.ObjectFromURL(Localurl, encoding='utf-8')
+  if rawfeed['feed'].has_key('openSearch$totalResults'):
+    need_previous = not (page == 1)
+    need_next = ((int(rawfeed['feed']['openSearch$startIndex']['$t']) + int(rawfeed['feed']['openSearch$itemsPerPage']['$t'])) < int(rawfeed['feed']['openSearch$totalResults']['$t']))
+      
+  if (need_previous):
+    dir.Append(Function(DirectoryItem(ParseChannelSearch, title="Previous"), url=url,page = page-1))
+
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       link = video['gd$feedLink'][0]['href']
@@ -532,17 +573,23 @@ def ParseChannelSearch(sender=None, url=''):
   if len(dir) == 0:
     return MessageContainer(L('Error'), L('This query did not return any result'))
   else:
+    if (need_next):
+      dir.Append(Function(DirectoryItem(ParseChannelSearch, title="Next"), url=url,page = page+1))
     return dir
 
-def ParsePlaylists(sender=None, url=''):
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+def ParsePlaylists(sender=None, url='',page=1):
+  dir = MediaContainer(viewGroup='InfoList', replaceParent = (page>1), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
-  if url.find('?') > 0:
-    url = url + '&alt=json'
-  else:
-    url = url + '?alt=json'
+  Localurl = AddJSONSuffix(url)+'&start-index=' + str((page-1)*MAXRESULTS+1) + '&max-results=' + str(MAXRESULTS)
+  
+  rawfeed = JSON.ObjectFromURL(Localurl, encoding='utf-8')
+  if rawfeed['feed'].has_key('openSearch$totalResults'):
+    need_previous = not (page == 1)
+    need_next = ((int(rawfeed['feed']['openSearch$startIndex']['$t']) + int(rawfeed['feed']['openSearch$itemsPerPage']['$t'])) < int(rawfeed['feed']['openSearch$totalResults']['$t']))
+      
+  if (need_previous):
+    dir.Append(Function(DirectoryItem(ParsePlaylists, title="Previous"), url=url,page = page-1))
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
   if rawfeed['feed'].has_key('entry'):
     for video in rawfeed['feed']['entry']:
       link = video['content']['src']
@@ -554,16 +601,23 @@ def ParsePlaylists(sender=None, url=''):
   if len(dir) == 0:
     return MessageContainer(L('Error'), L('This query did not return any result'))
   else:
+    if (need_next):
+      dir.Append(Function(DirectoryItem(ParsePlaylists, title="Next"), url=url,page = page+1))
     return dir
 
-def ParseSubscriptions(sender=None, url=''):
-  dir = MediaContainer(viewGroup='InfoList', httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
-  if url.find('?') > 0:
-    url = url + '&alt=json'
-  else:
-    url = url + '?alt=json'
+def ParseSubscriptions(sender=None, url='',page=1):
+  dir = MediaContainer(viewGroup='InfoList', replaceParent = (page>1), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+  
+  Localurl = AddJSONSuffix(url)+'&start-index=' + str((page-1)*MAXRESULTS+1) + '&max-results=' + str(MAXRESULTS)
 
-  rawfeed = JSON.ObjectFromURL(url, encoding='utf-8')
+  rawfeed = JSON.ObjectFromURL(Localurl, encoding='utf-8')
+  if rawfeed['feed'].has_key('openSearch$totalResults'):
+    need_previous = not (page == 1)
+    need_next = ((int(rawfeed['feed']['openSearch$startIndex']['$t']) + int(rawfeed['feed']['openSearch$itemsPerPage']['$t'])) < int(rawfeed['feed']['openSearch$totalResults']['$t']))
+      
+  if (need_previous):
+    dir.Append(Function(DirectoryItem(ParseSubscriptions, title="Previous"), url=url,page = page-1))
+
   if rawfeed['feed'].has_key('entry'):
     for subscription in rawfeed['feed']['entry']:
       link = subscription['content']['src']
@@ -580,6 +634,8 @@ def ParseSubscriptions(sender=None, url=''):
     else:
       return MessageContainer(L('Error'), L('This user has no subscriptions'))
   else:
+    if (need_next):
+      dir.Append(Function(DirectoryItem(ParseSubscriptions, title="Next"), url=url,page = page+1))
     return dir
 
 ####################################################################################################
