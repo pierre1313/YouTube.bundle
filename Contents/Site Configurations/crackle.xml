@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site site="http://.*crackle.com"
+	    plugin="http://.*crackle.com/.*"
+			initialState="playing"
+			version="1.0"
+            windowHeight="1080" 
+            windowWidth="1920">
+	
+<!--
+    SEEKBAR AUTO-HIDES...
+	<crop x="0" y="0" width="555" height="310" />
+ -->
+
+	<!-- PLAYING -->
+	<state name="playing">
+		<event>
+			<condition>
+				<command name="pause" />
+			</condition>
+			<action>
+                <type key="32"/>
+			</action>
+		</event>
+	</state>
+
+	<!-- PAUSED -->
+	<state name="paused">
+		<event>
+			<condition>
+				<command name="play" />
+			</condition>
+			<action>
+                <type key="32" />
+			</action>
+		</event> 
+	</state>
+</site>

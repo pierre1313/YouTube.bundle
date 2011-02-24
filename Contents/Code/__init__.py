@@ -31,6 +31,9 @@ YOUTUBE_QUERY = 'http://gdata.youtube.com/feeds/api/%s?q=%s&v=2'
 
 YOUTUBE = 'http://www.youtube.com'
 YOUTUBE_MOVIES = YOUTUBE + '/movies?hl=en'
+#CRACKLE_URL = 'http://crackle.com/flash/CracklePlayer.swf?id=%s'
+CRACKLE_URL = 'http://www.crackle.com/gtv/WatchShow.aspx?id=%s'
+
 YOUTUBE_SHOWS = YOUTUBE + '/shows?hl=en'
 YOUTUBE_TRAILERS = YOUTUBE + '/trailers?hl=en'
 
@@ -161,7 +164,13 @@ def MoviesCategoryMenu(sender,url,page=1):
       duration = GetDurationFromString(info[2].strip())
       subtitle = info[1].strip() + ' - ' + info[3].strip()
     summary = movie.xpath('.//p[@class="description"]')[0].text.strip()
-    dir.Append(Function(VideoItem(PlayVideo, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id))
+    if 'Crackle' in summary:
+      jsondetails = re.findall("(?<='PLAYER_CONFIG':)([^']+);",HTTP.Request('http://www.youtube.com/watch?v='+id).content)
+      if len(jsondetails) >0 :
+        mediaid =  re.findall('(?<="mediaid": ")([^"]+)"',jsondetails[0])[0]
+        dir.Append(WebVideoItem(CRACKLE_URL%mediaid, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration))
+    else:
+      dir.Append(Function(VideoItem(PlayVideo, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id))
 
   if '>Next<' in pageContent:
     dir.Append(Function(DirectoryItem(MoviesCategoryMenu, L("Next Page ...")), url=url, page = page + 1))
@@ -268,8 +277,8 @@ def TrailersVideos(sender,url,page=1):
 def MyAccount(sender):
   dir = MediaContainer()
   dir.Append(Function(DirectoryItem(ParseFeed, L('My Videos')), url=YOUTUBE_USER_VIDEOS % 'default'))
-  dir.Append(Function(DirectoryItem(ParseFeed, L('My Favorites')), url=YOUTUBE_USER_FAVORITES % Prefs['youtube_user']))
-  dir.Append(Function(DirectoryItem(ParsePlaylists, L('My Playlists')), url=YOUTUBE_USER_PLAYLISTS % Prefs['youtube_user']))
+  dir.Append(Function(DirectoryItem(ParseFeed, L('My Favorites')), url=YOUTUBE_USER_FAVORITES % 'default'))
+  dir.Append(Function(DirectoryItem(ParsePlaylists, L('My Playlists')), url=YOUTUBE_USER_PLAYLISTS % 'default'))
   dir.Append(Function(DirectoryItem(ParseSubscriptions, L('My Subscriptions')), url=YOUTUBE_USER_SUBSCRIPTIONS % 'default'))
   dir.Append(Function(DirectoryItem(MyContacts, L('My Contacts')), url=YOUTUBE_USER_CONTACTS % 'default'))
   return dir 
@@ -315,6 +324,8 @@ def Authenticate():
         Dict['loggedIn']=True
         Log("Login Sucessful")
         
+       # userprofile = JSON.ObjectFromUrl('http://gdata.youtube.com/feeds/api/users/default?alt=json")
+       # Dict['username'] = userprofile['entry']['yt$username']
   except:
     Dict['loggedIn']=False
     Log.Exception("Login Failed")
@@ -641,7 +652,7 @@ def ParseSubscriptions(sender=None, url='',page=1):
 ####################################################################################################
 
 def PlayVideo(sender, video_id):
-  yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1).content
+  yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1).content 
 
   fmt_url_map = re.findall('"fmt_url_map".+?"([^"]+)', yt_page)[0]
   fmt_url_map = fmt_url_map.replace('\/', '/').split(',')
