@@ -308,28 +308,29 @@ def ContactPage(sender, username):
 ####################################################################################################
  
 def Authenticate():
-  try:
-    req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
-      Email = Prefs['youtube_user'],
-      Passwd = Prefs['youtube_passwd'],
-      service = "youtube",
-      source = DEVELOPER_KEY
-    ))
-    data = req.content
-    
-    for keys in data.split('\n'):
-      if 'Auth=' in keys:
-        AuthToken = keys.replace("Auth=",'')
-        HTTP.Headers['Authorization'] = "GoogleLogin auth="+AuthToken
-        Dict['loggedIn']=True
-        Log("Login Sucessful")
+  if Prefs['youtube_user'] and Prefs['youtube_passwd']:
+    try:
+      req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
+        Email = Prefs['youtube_user'],
+        Passwd = Prefs['youtube_passwd'],
+        service = "youtube",
+        source = DEVELOPER_KEY
+      ))
+      data = req.content
+
+      for keys in data.split('\n'):
+        if 'Auth=' in keys:
+          AuthToken = keys.replace("Auth=",'')
+          HTTP.Headers['Authorization'] = "GoogleLogin auth="+AuthToken
+          Dict['loggedIn']=True
+          Log("Login Sucessful")
         
-       # userprofile = JSON.ObjectFromUrl('http://gdata.youtube.com/feeds/api/users/default?alt=json")
-       # Dict['username'] = userprofile['entry']['yt$username']
-  except:
-    Dict['loggedIn']=False
-    Log.Exception("Login Failed")
-    
+         # userprofile = JSON.ObjectFromUrl('http://gdata.youtube.com/feeds/api/users/default?alt=json")
+         # Dict['username'] = userprofile['entry']['yt$username']
+    except:
+      Dict['loggedIn']=False
+      Log.Exception("Login Failed")
+
   return True
   
 ####################################################################################################
