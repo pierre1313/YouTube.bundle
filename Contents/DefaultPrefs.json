@@ -46,19 +46,6 @@
         "default": "All/ALL" 
     },
     {
-        "id": "youtube_lang",
-        "type": "enum",
-        "label": "Preferred language",
-        "values": [
-            "en",
-            "fr",
-            "de",
-            "ru",
-            "jp"
-        ],
-        "default": "en" 
-    },
-    {
         "id": "youtube_user",
         "type": "text",
         "label": "Username",

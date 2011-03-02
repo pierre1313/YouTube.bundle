@@ -1,12 +1,59 @@
 {
   "YouTube Title": "YouTube",
+  
   "Today": "Today",
   "This Week": "This Week",
   "This Month": "This Month",
   "All Time": "All Time",
+  
   "Most Recent": "Most Recent",
-  "Search YouTube": "Search YouTube",
   "Most Viewed": "Most Viewed",
   "Top Rated": "Top Rated",
-  "Most Discussed": "Most Discussed"
+  "Most Discussed": "Most Discussed",
+  "Most Subscribed": "Most Subscribed",
+
+  "Search YouTube": "Search YouTube",
+  "Search Videos": "Search Videos",
+  "Search Channels": "Search Channels",
+  
+  "Videos": "Videos",
+  "Channels": "Channels",
+  "Movies": "Movies",
+  "Shows": "Shows",
+  "Music": "Music",
+  "Trailers": "Trailers",  
+  "Preferences": "Preferences",
+
+  "Previous Page ...": "Previous Page ...",
+  "Next Page ...": "Next Page ...",
+
+  "Air date : ": "Air date : ",
+  "Videos for ": "Videos for ",
+
+  "My Account": "My Account",  
+  "My Videos": "My Videos",
+  "My Favorites": "My Favorites",
+  "My Playlists": "My Playlists",
+  "My Subscriptions": "My Subscriptions",
+  "My Contacts": "My Contacts",
+
+  "Login sucessful": "Login sucessful",
+  "You are now logged in": "You are now logged in",
+  "Login failed": "Login failed",
+  "Please go back to the preference menu and re-enter your credentials": "Please go back to the preference menu and re-enter your credentials",
+  "Error": "Error",
+  "This query did not return any result": "This query did not return any result",
+  "You have no subscriptions": "You have no subscriptions",
+  "This user has no subscriptions": "This user has no subscriptions",
+  "You have no contacts": "You have no contacts",
+  "This feed does not contain any video": "This feed does not contain any video",
+  
+  " (Activity)": " (Activity)",
+  " (Videos)": " (Videos)",
+  
+  "'s uploads": "'s uploads",
+  "'s favorites": "'s favorites",
+  "'s subscriptions": "'s subscriptions",
+  "'s playlists": "'s playlists"
+
 }

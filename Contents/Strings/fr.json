@@ -1,0 +1,58 @@
+{
+  "YouTube Title": "YouTube",
+  
+  "Today": "Aujourd'hui",
+  "This Week": "Cette Semaine",
+  "This Month": "Ce Mois-ci",
+  "All Time": "Toujours",
+  
+  "Most Recent": "Les Plus Récentes",
+  "Most Viewed": "Les Plus Vues",
+  "Top Rated": "Les Mieux Notées",
+  "Most Discussed": "Les Plus Commentées",
+  "Most Subscribed": "Les Plus Suivies",
+
+  "Search YouTube": "Rechercher sur YouTube",
+  "Search Videos": "Rechercher les Vidéos",
+  "Search Channels": "Rechercher les Chaînes",
+  
+  "Videos": "Vidéos",
+  "Channels": "Chaînes",
+  "Movies": "Films",
+  "Shows": "Emissions",
+  "Music": "Musique",
+  "Trailers": "Bandes-annonces",  
+  "Preferences": "Préférences",
+
+  "Previous Page ...": "Page Précédente...",
+  "Next Page ...": "Page Suivante...",
+
+  "Air date : ": "Date de diffusion: ",
+  "Videos for ": "Vidéos de ", 
+
+  "My Account": "Mon Compte",  
+  "My Videos": "Mes Vidéos",
+  "My Favorites": "Mes Favoris",
+  "My Playlists": "Mes Playlists",
+  "My Subscriptions": "Mes Abonnements",
+  "My Contacts": "Mes Contacts",
+
+  "Login sucessful": "Identification réussie",
+  "You are now logged in": "Vous êtes maintenat identifié",
+  "Login failed": "Erreur d'identification",
+  "Please go back to the preference menu and re-enter your credentials": "Merci de revenir au menu de préférences et de re-entrer un identifiant valide,
+  "Error": "Erreur",
+  "This query did not return any result": "Cette recherche ne retourne aucun résultat",
+  "You have no subscriptions": "Vous n'avez aucun abonnement",
+  "This user has no subscriptions": "Cet utilisateur n'a aucun abonnements",
+  "You have no contacts": "Vous n'avez aucun contact"
+  "This feed does not contain any video": "Ce flux ne contient aucune vidéo",
+  
+  " (Activity)": " (Activité)",
+  " (Videos)": " (Vidéos)",
+  
+  "'s uploads": ": ses vidéos",
+  "'s favorites": ": ses favoris",
+  "'s subscriptions": ": ses abonnements",
+  "'s playlists": ": ses playlists"
+}
