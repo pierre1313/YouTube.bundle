@@ -57,5 +57,11 @@
         "label": "Password",
         "default": "",
         "option": "hidden" 
+    },
+    {
+        "id": "Submenu",
+        "type": "bool",
+        "label": "Enable Pre-Play menu",
+        "default": "True" 
     }
 ]
