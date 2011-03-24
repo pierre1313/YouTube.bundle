@@ -22,7 +22,9 @@ YOUTUBE_USER_PLAYLISTS = YOUTUBE_USER_FEED+'/playlists?v=2'
 YOUTUBE_USER_SUBSCRIPTIONS = YOUTUBE_USER_FEED+'/subscriptions?v=2'
 YOUTUBE_USER_CONTACTS = YOUTUBE_USER_FEED+'/contacts?v=2&alt=json'
 
-YOUTUBE_CHANNELS_FEEDS  = 'http://gdata.youtube.com/feeds/api/channelstandardfeeds/%s?v=2'
+YOUTUBE_RELATED_FEED = 'http://gdata.youtube.com/feeds/api/videos/%s/related?v=2'
+
+YOUTUBE_CHANNELS_FEEDS = 'http://gdata.youtube.com/feeds/api/channelstandardfeeds/%s?v=2'
 
 YOUTUBE_CHANNELS_MOSTVIEWED_URI = YOUTUBE_CHANNELS_FEEDS % ('most_viewed')
 YOUTUBE_CHANNELS_MOSTSUBSCRIBED_URI = YOUTUBE_CHANNELS_FEEDS % ('most_subscribed')
@@ -60,6 +62,7 @@ def Start():
   Plugin.AddPrefixHandler('/video/youtube', MainMenu, 'YouTube', ICON, ART)
   Plugin.AddViewGroup('List', viewMode='List', mediaType='items')
   Plugin.AddViewGroup('InfoList', viewMode='InfoList', mediaType='items')
+  Plugin.AddViewGroup('PanelStream', viewMode='PanelStream', mediaType='items')
 
   MediaContainer.title1 = 'YouTube'
   MediaContainer.viewGroup = 'List'
@@ -103,7 +106,7 @@ def MainMenu():
   dir.Append(Function(DirectoryItem(MoviesMenu, L('Movies'), L('Movies'))))
   dir.Append(Function(DirectoryItem(ShowsMenu, L('Shows'), L('Shows'))))    
 #  dir.Append(Function(DirectoryItem(VideosMenu, L('* Music'), L('Music'))))
-  dir.Append(Function(DirectoryItem(TrailersMenu, L('Trailers'), L('Trailers'))))    
+  dir.Append(Function(DirectoryItem(TrailersMenu, L('Trailers'), L('Trailers'))))  
   if Dict['loggedIn'] == True:
     dir.Append(Function(DirectoryItem(MyAccount, L('My Account'), L('My Account'))))  
   dir.Append(PrefsItem(L('Preferences'), thumb=R('icon-prefs.png')))
@@ -145,13 +148,13 @@ def MoviesMenu(sender):
   return dir
 
 def MoviesCategoryMenu(sender,url,page=1):
-  dir = MediaContainer(viewGroup='InfoList',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+  dir = MediaContainer(viewGroup='PanelStream',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
 
   if page > 1:
     dir.Append(Function(DirectoryItem(MoviesCategoryMenu, L("Previous Page ...")), url=url, page = page - 1))
 
   pageContent = HTTP.Request(url+'?p='+str(page)).content
-  for movie in HTML.ElementFromString(pageContent).xpath("//div[contains(@class,'movie-cell')]"):
+  for movie in HTML.ElementFromString(pageContent).xpath("//div[@id='popular-column']//div[contains(@class,'movie-cell')]"):
     title = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].text.strip()
     id = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].get('href').split('v=')[1]
     thumb = movie.xpath('.//span[@class="clip"]/img')[0].get('src')
@@ -163,14 +166,22 @@ def MoviesCategoryMenu(sender,url,page=1):
     else:
       duration = GetDurationFromString(info[2].strip())
       subtitle = info[1].strip() + ' - ' + info[3].strip()
-    summary = movie.xpath('.//p[@class="description"]')[0].text.strip()
+      
+    try:  
+      summary = movie.xpath('.//p[@class="description"]')[0].text.strip()
+    except: 
+      summary = ''
+      
     if 'Crackle' in summary:
       jsondetails = re.findall("(?<='PLAYER_CONFIG':)([^']+);",HTTP.Request('http://www.youtube.com/watch?v='+id).content)
       if len(jsondetails) >0 :
         mediaid =  re.findall('(?<="mediaid": ")([^"]+)"',jsondetails[0])[0]
         dir.Append(WebVideoItem(CRACKLE_URL%mediaid, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration))
     else:
-      dir.Append(Function(VideoItem(PlayVideo, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id))
+      if Prefs['Submenu'] == True:
+        dir.Append(Function(PopupDirectoryItem(VideoSubMenu, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id, title = title))
+      else:
+        dir.Append(Function(VideoItem(PlayVideo, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id))
 
   if '>Next<' in pageContent:
     dir.Append(Function(DirectoryItem(MoviesCategoryMenu, L("Next Page ...")), url=url, page = page + 1))
@@ -188,7 +199,7 @@ def ShowsMenu(sender):
   return dir
 
 def ShowsCategoryMenu(sender,url,page=1):
-  dir = MediaContainer(viewGroup='List',title2 = sender.title2)
+  dir = MediaContainer(viewGroup='PanelStream',title2 = sender.title2)
 
   if page > 1:
     dir.Append(Function(DirectoryItem(ShowsCategoryMenu, L("Previous Page ...")), url=url, page = page - 1))
@@ -217,7 +228,11 @@ def ShowsVideos(sender,url,thumb):
       subtitle =  L('Air date : ') + episode.xpath('./td[5]')[0].text.strip()
     except:
       subtitle = ''
-    dir.Append(Function(VideoItem(PlayVideo, title, thumb = thumb, subtitle = subtitle, summary = summary, duration = duration), video_id=id))
+      
+    if Prefs['Submenu'] == True:
+      dir.Append(Function(PopupDirectoryItem(VideoSubMenu, title, thumb = thumb, subtitle = subtitle, summary = summary, duration = duration), video_id=id, title = title))
+    else:
+      dir.Append(Function(VideoItem(PlayVideo, title, thumb = thumb, subtitle = subtitle, summary = summary, duration = duration), video_id=id))
 
   return dir
 
@@ -240,7 +255,12 @@ def GetSummary(videoid):
     return ''
 
 def TrailersVideos(sender,url,page=1):
-  dir = MediaContainer(viewGroup='List',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+#  menu = ContextMenu(includeStandardItems=False)
+#  menu.Append(Function(VideoItem(PlayVideo,L('Play Video'))))
+#  menu.Append(Function(DirectoryItem(SetAsFavorite, L('Mark As Favorite'), '')))  
+#  menu.Append(Function(DirectoryItem(ParseFeed, L('View Related'), ''),url=''))
+  
+  dir = MediaContainer(viewGroup='PanelStream',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))#, contextMenu=menu, noCache=True)
 
   if page > 1:
     dir.Append(Function(DirectoryItem(TrailersVideos, L("Previous Page ...")), url=url, page = page - 1))
@@ -263,7 +283,11 @@ def TrailersVideos(sender,url,page=1):
 
     #duration = str(details['entry']['media$group']['yt$duration'])*1000
     duration = 0 # possible future addition
-    dir.Append(Function(VideoItem(PlayVideo, title, thumb = thumb, subtitle = subtitle, summary = summary, duration = duration), video_id=id))
+    if Prefs['Submenu'] == True:
+#      dir.Append(Function(DirectoryItem(VideoSubMenu, title=title, contextKey=id, contextArgs={}), video_id=id, title = title))
+      dir.Append(Function(PopupDirectoryItem(VideoSubMenu, title=title, thumb = thumb, subtitle = subtitle, summary = summary, duration = duration), video_id=id, title = title))
+    else:
+      dir.Append(Function(VideoItem(PlayVideo, title, thumb = thumb, subtitle = subtitle, summary = summary, duration = duration), video_id=id))
 
   if '>Next<' in pageContent:
     dir.Append(Function(DirectoryItem(TrailersVideos, L("Next Page ...")), url=url, page = page + 1))
@@ -308,29 +332,40 @@ def ContactPage(sender, username):
 ####################################################################################################
  
 def Authenticate():
-  if Prefs['youtube_user'] and Prefs['youtube_passwd']:
+
+  if Dict['Session'] :
     try:
-      req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
-        Email = Prefs['youtube_user'],
-        Passwd = Prefs['youtube_passwd'],
-        service = "youtube",
-        source = DEVELOPER_KEY
-      ))
-      data = req.content
-
-      for keys in data.split('\n'):
-        if 'Auth=' in keys:
-          AuthToken = keys.replace("Auth=",'')
-          HTTP.Headers['Authorization'] = "GoogleLogin auth="+AuthToken
-          Dict['loggedIn']=True
-          Log("Login Sucessful")
-        
-         # userprofile = JSON.ObjectFromUrl('http://gdata.youtube.com/feeds/api/users/default?alt=json")
-         # Dict['username'] = userprofile['entry']['yt$username']
+      req = HTTP.Request('https://www.youtube.com/', values=dict(
+          session_token = Dict['Session'],
+          action_logout = "1"
+        )) 
     except:
-      Dict['loggedIn']=False
-      Log.Exception("Login Failed")
-
+       pass
+  try:
+    req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
+      Email = Prefs['youtube_user'],
+      Passwd = Prefs['youtube_passwd'],
+      service = "youtube",
+      source = DEVELOPER_KEY
+    ))
+    data = req.content
+    
+    for keys in data.split('\n'):
+      if 'Auth=' in keys:
+        AuthToken = keys.replace("Auth=",'')
+        HTTP.Headers['Authorization'] = "GoogleLogin auth="+AuthToken
+        Dict['loggedIn']=True
+        Log("Login Sucessful")
+      if 'SID=' in keys:
+        Dict['Session'] = keys.replace("SID=",'')
+            
+        
+       # userprofile = JSON.ObjectFromUrl('http://gdata.youtube.com/feeds/api/users/default?alt=json")
+       # Dict['username'] = userprofile['entry']['yt$username']
+  except:
+    Dict['loggedIn']=False
+    Log.Exception("Login Failed")
+    
   return True
   
 ####################################################################################################
@@ -456,7 +491,11 @@ def ParseFeed(sender=None, url='', page=1):
 	      except:
 	        rating = None
 	      thumb = video['media$group']['media$thumbnail'][0]['url']
-	      dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
+	      
+        if Prefs['Submenu'] == True:
+          dir.Append(Function(PopupDirectoryItem(VideoSubMenu, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id, title = title))
+        else:
+          dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
 
       if (need_next):
         dir.Append(Function(DirectoryItem(ParseFeed, title="Next"), url=url,page = page+1))
@@ -518,9 +557,12 @@ def ParseSubscriptionFeed(sender=None, url='',page=1):
 			  rating = None
 
 		    thumb = details['media$group']['media$thumbnail'][0]['url']
-
-		    dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
-
+ 
+		    if Prefs['Submenu'] == True:
+		      dir.Append(Function(PopupDirectoryItem(VideoSubMenu,  title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id, title = title))
+		    else:
+		      dir.Append(Function(VideoItem(PlayVideo, title=title, subtitle=published, summary=summary, duration=duration, rating=rating, thumb=Function(Thumb, url=thumb)), video_id=video_id))
+	
   if len(dir) == 0:
     return MessageContainer(L('Error'), L('This query did not return any result'))
   else:
@@ -651,7 +693,48 @@ def ParseSubscriptions(sender=None, url='',page=1):
     return dir
 
 ####################################################################################################
+def VideoSubMenu(sender, video_id, title):
+  dir = MediaContainer(httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+  
+  dir.Append(Function(VideoItem(PlayVideo,L('Play Video')), video_id=video_id))
+  #dir.Append(Function(DirectoryItem(SetAsFavorite, L('Mark as favorite in YouTube account'), ''),video_id = video_id,title =title))  
+  dir.Append(Function(DirectoryItem(ParseFeed, L('View Related'), ''),url=YOUTUBE_RELATED_FEED%video_id))
+  
+  return dir
+  
+def SetAsFavorite(sender, video_id, title):  
 
+  dir = MediaContainer(httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+  
+  try:
+    req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
+      Email = Prefs['youtube_user'],
+      Passwd = Prefs['youtube_passwd'],
+      service = "youtube",
+      source = DEVELOPER_KEY
+    ))
+    data = req.content
+    
+    for keys in data.split('\n'):
+      if 'Auth=' in keys:
+        AuthToken = keys.replace("Auth=",'')
+    
+    params = {
+        "Host":"gdata.youtube.com",
+        "Content-Type": "application/atom+xml",
+        "Authorization":"AuthSub token="+AuthToken,
+        "GData-Version":"2",
+        "X-GData-Key":"key="+DEVELOPER_KEY
+        }
+    Log(params)
+    
+    data = '<?xml version="1.0" encoding="UTF-8"?><entry xmlns="http://www.w3.org/2005/Atom"><id>'+video_id+'</id></entry>'
+    
+    req = HTTP.Request('http://gdata.youtube.com/feeds/api/users/default/favorites', values = params, data = data)
+    return MessageContainer("Success","This video has been added as a favorite to your account")
+  except:
+    return MessageContainer("Error","This video has NOT been added as a favorite to your account")
+  
 def PlayVideo(sender, video_id):
   yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1).content 
 
@@ -677,6 +760,6 @@ def PlayVideo(sender, video_id):
       else:
         fmt = 5
 
-  url = fmts_info[str(fmt)]
+  url = (fmts_info[str(fmt)]).decode('unicode_escape')
   Log("  VIDEO URL --> " + url)
   return Redirect(url)
