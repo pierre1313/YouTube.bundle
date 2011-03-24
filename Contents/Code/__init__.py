@@ -333,41 +333,43 @@ def ContactPage(sender, username):
  
 def Authenticate():
 
-  if Dict['Session'] :
+  # Only when username and password are set
+  if Prefs['youtube_user'] and Prefs['youtube_passwd']:
+    if Dict['Session'] :
+      try:
+        req = HTTP.Request('https://www.youtube.com/', values=dict(
+            session_token = Dict['Session'],
+            action_logout = "1"
+          )) 
+      except:
+         pass
     try:
-      req = HTTP.Request('https://www.youtube.com/', values=dict(
-          session_token = Dict['Session'],
-          action_logout = "1"
-        )) 
+      req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
+        Email = Prefs['youtube_user'],
+        Passwd = Prefs['youtube_passwd'],
+        service = "youtube",
+        source = DEVELOPER_KEY
+      ))
+      data = req.content
+
+      for keys in data.split('\n'):
+        if 'Auth=' in keys:
+          AuthToken = keys.replace("Auth=",'')
+          HTTP.Headers['Authorization'] = "GoogleLogin auth="+AuthToken
+          Dict['loggedIn']=True
+          Log("Login Sucessful")
+        if 'SID=' in keys:
+          Dict['Session'] = keys.replace("SID=",'')
+
+
+         # userprofile = JSON.ObjectFromUrl('http://gdata.youtube.com/feeds/api/users/default?alt=json")
+         # Dict['username'] = userprofile['entry']['yt$username']
     except:
-       pass
-  try:
-    req = HTTP.Request('https://www.google.com/accounts/ClientLogin', values=dict(
-      Email = Prefs['youtube_user'],
-      Passwd = Prefs['youtube_passwd'],
-      service = "youtube",
-      source = DEVELOPER_KEY
-    ))
-    data = req.content
-    
-    for keys in data.split('\n'):
-      if 'Auth=' in keys:
-        AuthToken = keys.replace("Auth=",'')
-        HTTP.Headers['Authorization'] = "GoogleLogin auth="+AuthToken
-        Dict['loggedIn']=True
-        Log("Login Sucessful")
-      if 'SID=' in keys:
-        Dict['Session'] = keys.replace("SID=",'')
-            
-        
-       # userprofile = JSON.ObjectFromUrl('http://gdata.youtube.com/feeds/api/users/default?alt=json")
-       # Dict['username'] = userprofile['entry']['yt$username']
-  except:
-    Dict['loggedIn']=False
-    Log.Exception("Login Failed")
-    
+      Dict['loggedIn']=False
+      Log.Exception("Login Failed")
+
   return True
-  
+
 ####################################################################################################
 
 def SubMenu(sender, category):
