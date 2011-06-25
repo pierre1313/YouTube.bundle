@@ -145,7 +145,10 @@ def MoviesMenu(sender):
   dir = MediaContainer(title2 = L("Movies")) 
   for category in HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[@id='shmoovies-category-menu-container']/ul/li/a"):
     dir.Append(Function(DirectoryItem(MoviesCategoryMenu, category.text.strip()), url=YOUTUBE + category.get('href')))
-  return dir
+  if len(dir) == 0:
+    return MessageContainer("Empty", "There aren't any items")
+  else:
+    return dir
 
 def MoviesCategoryMenu(sender,url,page=1):
   dir = MediaContainer(viewGroup='PanelStream',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
@@ -186,7 +189,10 @@ def MoviesCategoryMenu(sender,url,page=1):
   if '>Next<' in pageContent:
     dir.Append(Function(DirectoryItem(MoviesCategoryMenu, L("Next Page ...")), url=url, page = page + 1))
 
-  return dir
+  if len(dir) == 0:
+    return MessageContainer("Empty", "There aren't any items")
+  else:
+    return dir
 
 ####################################################################################################
 ## SHOWS
@@ -196,7 +202,10 @@ def ShowsMenu(sender):
   dir = MediaContainer(title2 = L("Shows")) 
   for category in HTML.ElementFromURL(YOUTUBE_SHOWS).xpath("//div[@id='shmoovies-category-menu-container']/ul/li/a"):
     dir.Append(Function(DirectoryItem(ShowsCategoryMenu, category.text.strip()), url=YOUTUBE + category.get('href')))
-  return dir
+  if len(dir) == 0:
+    return MessageContainer("Empty", "There aren't any items")
+  else:
+    return dir
 
 def ShowsCategoryMenu(sender,url,page=1):
   dir = MediaContainer(viewGroup='PanelStream',title2 = sender.title2)
@@ -214,7 +223,10 @@ def ShowsCategoryMenu(sender,url,page=1):
   if '>Next<' in pageContent:
     dir.Append(Function(DirectoryItem(ShowsCategoryMenu, L("Next Page ...")), url=url, page = page + 1))
 
-  return dir
+  if len(dir) == 0:
+    return MessageContainer("Empty", "There aren't any items")
+  else:
+    return dir
 
 def ShowsVideos(sender,url,thumb):
   dir = MediaContainer(viewGroup='InfoList',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
@@ -234,7 +246,10 @@ def ShowsVideos(sender,url,thumb):
     else:
       dir.Append(Function(VideoItem(PlayVideo, title, thumb = thumb, subtitle = subtitle, summary = summary, duration = duration), video_id=id))
 
-  return dir
+  if len(dir) == 0:
+    return MessageContainer("Empty", "There aren't any items")
+  else:
+    return dir
 
 ####################################################################################################
 ## TRAILERS
@@ -244,7 +259,10 @@ def TrailersMenu(sender):
   dir = MediaContainer(title2 = L("Trailers")) 
   for category in HTML.ElementFromURL(YOUTUBE_TRAILERS).xpath("//div[@class='trailer-list']/preceding-sibling::h3/a"):
     dir.Append(Function(DirectoryItem(TrailersVideos, category.text.strip()), url=YOUTUBE + category.get('href')))
-  return dir
+  if len(dir) == 0:
+    return MessageContainer("Empty", "There aren't any items")
+  else:
+    return dir
 
 def GetSummary(videoid):
   try:
@@ -292,7 +310,10 @@ def TrailersVideos(sender,url,page=1):
   if '>Next<' in pageContent:
     dir.Append(Function(DirectoryItem(TrailersVideos, L("Next Page ...")), url=url, page = page + 1))
 
-  return dir
+  if len(dir) == 0:
+    return MessageContainer("Empty", "There aren't any items")
+  else:
+    return dir
 
 ####################################################################################################
 ## MY ACCOUNT
