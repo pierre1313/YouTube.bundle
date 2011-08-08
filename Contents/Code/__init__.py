@@ -32,12 +32,13 @@ YOUTUBE_CHANNELS_MOSTSUBSCRIBED_URI = YOUTUBE_CHANNELS_FEEDS % ('most_subscribed
 YOUTUBE_QUERY = 'http://gdata.youtube.com/feeds/api/%s?q=%s&v=2'
 
 YOUTUBE = 'http://www.youtube.com'
-YOUTUBE_MOVIES = YOUTUBE + '/movies?hl=en'
+YOUTUBE_MOVIES = YOUTUBE + '/moviemovs?hl=en'
 #CRACKLE_URL = 'http://crackle.com/flash/CracklePlayer.swf?id=%s'
 CRACKLE_URL = 'http://www.crackle.com/gtv/WatchShow.aspx?id=%s'
 
 YOUTUBE_SHOWS = YOUTUBE + '/shows?hl=en'
 YOUTUBE_TRAILERS = YOUTUBE + '/trailers?hl=en'
+YOUTUBE_LIVE = YOUTUBE + '/live'
 
 MAXRESULTS = 50
 
@@ -103,8 +104,9 @@ def MainMenu():
 
   dir.Append(Function(DirectoryItem(VideosMenu, localizedVideosName, localizedVideosName)))
   dir.Append(Function(DirectoryItem(ChannelsMenu, L('Channels'), L('Channels'))))
-  dir.Append(Function(DirectoryItem(MoviesMenu, L('Movies'), L('Movies'))))
-  dir.Append(Function(DirectoryItem(ShowsMenu, L('Shows'), L('Shows'))))    
+#  dir.Append(Function(DirectoryItem(MoviesMenu, L('Movies'), L('Movies'))))
+#  dir.Append(Function(DirectoryItem(ShowsMenu, L('Shows'), L('Shows'))))    
+  dir.Append(Function(DirectoryItem(LiveMenu, L('Live'), L('Live'))))   
 #  dir.Append(Function(DirectoryItem(VideosMenu, L('* Music'), L('Music'))))
   dir.Append(Function(DirectoryItem(TrailersMenu, L('Trailers'), L('Trailers'))))  
   if Dict['loggedIn'] == True:
@@ -142,9 +144,14 @@ def ChannelsMenu(sender):
 ####################################################################################################
 
 def MoviesMenu(sender):
-  dir = MediaContainer(title2 = L("Movies")) 
-  for category in HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[@id='shmoovies-category-menu-container']/ul/li/a"):
-    dir.Append(Function(DirectoryItem(MoviesCategoryMenu, category.text.strip()), url=YOUTUBE + category.get('href')))
+  return MessageContainer("Maintenance"," This section still needs fixing, thanks for your patience")
+  dir = MediaContainer(title2 = L("Movies"), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/')) 
+  Log(HTML.StringFromElement(HTML.ElementFromURL(YOUTUBE_MOVIES)))
+  Log(HTML.StringFromElement(HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[contains(@class,'browse-content')]//div[contains(@class, 'browse-collection')]")[0]))
+  Log(HTML.StringFromElement(HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[contains(@class,'browse-content')]//div[contains(@class, 'browse-collection')]//div[contains(@class,'slider-title')]//h2/a")[0]))
+  for category in HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[contains(@class,'browse-content')]//div[contains(@class, 'browse-collection')]//div[contains(@class,'slider-title')]//h2/a"):
+    raw_text = category.text.split('»')[0]
+    dir.Append(Function(DirectoryItem(MoviesCategoryMenu, raw_text.strip()), url=YOUTUBE + category.get('href')))
   if len(dir) == 0:
     return MessageContainer("Empty", "There aren't any items")
   else:
@@ -152,39 +159,56 @@ def MoviesMenu(sender):
 
 def MoviesCategoryMenu(sender,url,page=1):
   dir = MediaContainer(viewGroup='PanelStream',title2 = sender.title2, httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+#  for category in HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[contains(@class,'browse-content')]//div[contains(@class, 'browse-collection')]//div[contains(@class,'browse-item-content')]//h3/a"):
 
   if page > 1:
     dir.Append(Function(DirectoryItem(MoviesCategoryMenu, L("Previous Page ...")), url=url, page = page - 1))
-
-  pageContent = HTTP.Request(url+'?p='+str(page)).content
-  for movie in HTML.ElementFromString(pageContent).xpath("//div[@id='popular-column']//div[contains(@class,'movie-cell')]"):
-    title = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].text.strip()
-    id = movie.xpath('.//div[@class="movie-title"]/div[@class="movie-short-title"]/a')[0].get('href').split('v=')[1]
-    thumb = movie.xpath('.//span[@class="clip"]/img')[0].get('src')
-    info = (HTML.StringFromElement(movie.xpath('.//p[@class="info"]')[0]).replace('mpaa">',"|Rated ").replace('</span>','|').replace('\n','').replace('</p>','')).split('|')
-
-    if len(info) == 2:
-      duration = GetDurationFromString(info[0].split('info">')[1].strip())
-      subtitle = info[1].strip()
-    else:
-      duration = GetDurationFromString(info[2].strip())
-      subtitle = info[1].strip() + ' - ' + info[3].strip()
+  pageContent = HTTP.Request(url + '&p='+str(page)).content
+  for movie in HTML.ElementFromString(pageContent).xpath("//div[contains(@class,'browse-content')]//ul[contains(@class, 'browse-item-list')]/li"):
+    if movie.xpath('//span[contains(@class,"item-price") and contains(@class,"free")]'):
+      title = movie.xpath('.//div[contains(@class,"browse-item-content")]//h3/a')[0].get('title')
+      movie_page = YOUTUBE +  movie.xpath('.//div[contains(@class,"browse-item-content")]//h3/a')[0].get('href')
+      #Log(HTML.StringFromElement(HTML.ElementFromURL(movie_page).xpath('//button[contains(@class,"yt-uix-button-promo")]')[0]))
+      play_button =  HTML.ElementFromURL(movie_page).xpath('//button[contains(@class,"yt-uix-button-promo")]')[0]
+      try:
+        id = play_button.get('data-watch-url').split('v=')[1].split('&')[0]
+      except:
+        id = play_button.get('href').split('v=')[1].split('&amp;')[0]  
+      Log(HTML.StringFromElement(movie))
+      try: 
+        thumb = movie.xpath('.//img[contains(@alt,"Thumbnail")]')[0].get('data-thumb')
+      except:
+        thumb = ICON
+      info = movie.xpath('.//div[@class="info"]')[0]
+      try:
+        duration_str = info.xpath('.//span[@class="duration"]')[0].text
+        duration = GetDurationFromString(duration_str)
+      except:
+        duration = None
+        
+      try: 
+        if Prefs['Submenu'] == True:
+          subtitle = duration_str
+        else: 
+          subtitle = movie.xpath(".//div[@class='details']//p[@class='starring']")[0].text.strip()
+      except:
+        subtitle = ''
       
-    try:  
-      summary = movie.xpath('.//p[@class="description"]')[0].text.strip()
-    except: 
-      summary = ''
+      try:  
+        summary = movie.xpath(".//div[@class='details']//p[@class='description']")[0].text.strip()
+      except: 
+        summary = ''
       
-    if 'Crackle' in summary:
-      jsondetails = re.findall("(?<='PLAYER_CONFIG':)([^']+);",HTTP.Request('http://www.youtube.com/watch?v='+id).content)
-      if len(jsondetails) >0 :
-        mediaid =  re.findall('(?<="mediaid": ")([^"]+)"',jsondetails[0])[0]
-        dir.Append(WebVideoItem(CRACKLE_URL%mediaid, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration))
-    else:
-      if Prefs['Submenu'] == True:
-        dir.Append(Function(PopupDirectoryItem(VideoSubMenu, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id, title = title))
+      if 'Crackle' in summary:
+        jsondetails = re.findall("(?<='PLAYER_CONFIG':)([^']+);",HTTP.Request('http://www.youtube.com/watch?v='+id).content)
+        if len(jsondetails) >0 :
+          mediaid =  re.findall('(?<="mediaid": ")([^"]+)"',jsondetails[0])[0]
+          dir.Append(WebVideoItem(CRACKLE_URL%mediaid, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration))
       else:
-        dir.Append(Function(VideoItem(PlayVideo, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id))
+        if Prefs['Submenu'] == True:
+          dir.Append(Function(PopupDirectoryItem(VideoSubMenu, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id, title = title))
+        else:
+          dir.Append(Function(VideoItem(PlayVideo, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id))
 
   if '>Next<' in pageContent:
     dir.Append(Function(DirectoryItem(MoviesCategoryMenu, L("Next Page ...")), url=url, page = page + 1))
@@ -195,13 +219,66 @@ def MoviesCategoryMenu(sender,url,page=1):
     return dir
 
 ####################################################################################################
+## LIVE
+####################################################################################################
+
+def LiveMenu(sender,page=1):
+  dir = MediaContainer(viewGroup='PanelStream',title2 = L("Live"), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/'))
+#  for category in HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[contains(@class,'browse-content')]//div[contains(@class, 'browse-collection')]//div[contains(@class,'browse-item-content')]//h3/a"):
+
+  if page > 1:
+    dir.Append(Function(DirectoryItem(MoviesCategoryMenu, L("Previous Page ...")), url=url, page = page - 1))
+  pageContent = HTTP.Request(YOUTUBE_LIVE).content
+  for movie in HTML.ElementFromString(pageContent).xpath("//div[contains(@id,'live-main')]//li[contains(@class,'yt-uix-slider-slide-item')]"):
+    try:
+      title = movie.xpath('.//div[contains(@class,"browse-item-content")]//h3/a[@class="live-video-title"]')[0].text
+    except:
+      title = ""
+      
+    try:
+      id =  movie.xpath('.//div[contains(@class,"browse-item-content")]//h3/a')[0].get('href').split('/')[-1]
+    except:
+      id = ""
+  
+    Log(id)
+  
+    try: 
+      thumb = movie.xpath('.//img[@alt="Thumbnail"]')[0].get('src')
+    except:
+      thumb = ICON
+      
+    if not 'http://' in thumb:
+      thumb = 'http:' + thumb
+    
+    subtitle = ''
+    duration = None
+      
+    try:  
+      summary = movie.xpath(".//div[@class='details']//p[@class='description']")[0].text.strip()
+    except: 
+      summary = ''
+      
+    dir.Append(Function(VideoItem(PlayVideo, title, thumb = Function(Thumb, url=thumb), subtitle = subtitle, summary = summary, duration = duration), video_id=id))
+
+  if '>Next<' in pageContent:
+    dir.Append(Function(DirectoryItem(MoviesCategoryMenu, L("Next Page ...")), url=url, page = page + 1))
+
+  if len(dir) == 0:
+    return MessageContainer("Empty", "There aren't any items")
+  else:
+    return dir
+
+
+####################################################################################################
 ## SHOWS
 ####################################################################################################
 
 def ShowsMenu(sender):
+  return MessageContainer("Maintenance"," This section still needs fixing, thanks for your patience")
   dir = MediaContainer(title2 = L("Shows")) 
-  for category in HTML.ElementFromURL(YOUTUBE_SHOWS).xpath("//div[@id='shmoovies-category-menu-container']/ul/li/a"):
-    dir.Append(Function(DirectoryItem(ShowsCategoryMenu, category.text.strip()), url=YOUTUBE + category.get('href')))
+  for category in HTML.ElementFromURL(YOUTUBE_SHOWS).xpath("//div[contains(@class,'browse-content')]//div[contains(@class, 'browse-collection')]//div[contains(@class,'slider-title')]//h2/a"):
+    raw_text = category.text.split('»')[0]
+    dir.Append(Function(DirectoryItem(MoviesCategoryMenu, raw_text.strip()), url=YOUTUBE + category.get('href')))
   if len(dir) == 0:
     return MessageContainer("Empty", "There aren't any items")
   else:
@@ -761,16 +838,21 @@ def SetAsFavorite(sender, video_id, title):
 def PlayVideo(sender, video_id):
   yt_page = HTTP.Request(YOUTUBE_VIDEO_PAGE % (video_id), cacheTime=1).content 
 
-  fmt_url_map = re.findall('"fmt_url_map".+?"([^"]+)', yt_page)[0]
+  fmt_url_map = re.findall('"url_encoded_fmt_stream_map".+?"([^"]+)', yt_page)[0]
   fmt_url_map = fmt_url_map.replace('\/', '/').split(',')
 
   fmts = []
   fmts_info = {}
 
   for f in fmt_url_map:
-    (fmt, url) = f.split('|')
-    fmts.append(fmt)
-    fmts_info[str(fmt)] = url
+    map = {}
+    params = f.split('\u0026')
+    for p in params:
+      (name, value) = p.split('=')
+      map[name] = value
+    quality = str(map['itag'])
+    fmts_info[quality] = String.Unquote(map['url'])
+    fmts.append(quality)
 
   index = YOUTUBE_VIDEO_FORMATS.index(Prefs['youtube_fmt'])
   if YOUTUBE_FMT[index] in fmts:
