@@ -104,8 +104,8 @@ def MainMenu():
 
   dir.Append(Function(DirectoryItem(VideosMenu, localizedVideosName, localizedVideosName)))
   dir.Append(Function(DirectoryItem(ChannelsMenu, L('Channels'), L('Channels'))))
-#  dir.Append(Function(DirectoryItem(MoviesMenu, L('Movies'), L('Movies'))))
-#  dir.Append(Function(DirectoryItem(ShowsMenu, L('Shows'), L('Shows'))))    
+  dir.Append(Function(DirectoryItem(MoviesMenu, L('Movies'), L('Movies'))))
+  dir.Append(Function(DirectoryItem(ShowsMenu, L('Shows'), L('Shows'))))    
   dir.Append(Function(DirectoryItem(LiveMenu, L('Live'), L('Live'))))   
 #  dir.Append(Function(DirectoryItem(VideosMenu, L('* Music'), L('Music'))))
   dir.Append(Function(DirectoryItem(TrailersMenu, L('Trailers'), L('Trailers'))))  
@@ -144,7 +144,7 @@ def ChannelsMenu(sender):
 ####################################################################################################
 
 def MoviesMenu(sender):
-  return MessageContainer("Maintenance"," This section still needs fixing, thanks for your patience")
+  return MessageContainer("Maintenance"," This section still needs fixing, thanks for your patience, it should just be a few days .....")
   dir = MediaContainer(title2 = L("Movies"), httpCookies=HTTP.GetCookiesForURL('http://www.youtube.com/')) 
   Log(HTML.StringFromElement(HTML.ElementFromURL(YOUTUBE_MOVIES)))
   Log(HTML.StringFromElement(HTML.ElementFromURL(YOUTUBE_MOVIES).xpath("//div[contains(@class,'browse-content')]//div[contains(@class, 'browse-collection')]")[0]))
@@ -274,7 +274,7 @@ def LiveMenu(sender,page=1):
 ####################################################################################################
 
 def ShowsMenu(sender):
-  return MessageContainer("Maintenance"," This section still needs fixing, thanks for your patience")
+  return MessageContainer("Maintenance"," This section still needs fixing, thanks for your patience, it should just be a few days .....")
   dir = MediaContainer(title2 = L("Shows")) 
   for category in HTML.ElementFromURL(YOUTUBE_SHOWS).xpath("//div[contains(@class,'browse-content')]//div[contains(@class, 'browse-collection')]//div[contains(@class,'slider-title')]//h2/a"):
     raw_text = category.text.split('»')[0]
